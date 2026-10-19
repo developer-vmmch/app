@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary_navy">#12345B</color>
+    <color name="primary_blue">#246BCE</color>
+    <color name="secondary_blue">#4D8DE0</color>
+    <color name="pale_blue">#EAF3FF</color>
+    <color name="light_clinical_bg">#F6F9FD</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="primary_text">#142238</color>
+    <color name="secondary_text">#63738A</color>
+    <color name="border_color">#E1E9F3</color>
+    <color name="success_color">#16845B</color>
+    <color name="warning_color">#B7791F</color>
+    <color name="error_color">#C43D4B</color>
+</resources>

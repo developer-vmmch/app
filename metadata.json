@@ -1,0 +1,6 @@
+{
+  "name": "AMT Doctor Knowledge Network",
+  "description": "Professional knowledge-sharing, mentoring and educational collaboration mobile network for doctors by AMT Tech Nova.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
