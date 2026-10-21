@@ -31,10 +31,21 @@ import {
   CheckCircle2,
   Activity,
   BookOpen,
+  MapPin,
+  Compass,
+  Radio,
+  CornerUpLeft,
+  Copy,
+  Trash2,
+  Navigation,
+  Pin,
+  Volume2,
 } from 'lucide-react';
 import { Conversation, Message, DoctorProfile, VerificationStatus } from '../../types';
 import { api } from '../../services/api';
 import { VerificationBadge } from '../common/VerificationBadge';
+import { CallModal, ActiveCallState } from './CallModal';
+import { DoctorKnowledgeMap } from '../maps/DoctorKnowledgeMap';
 
 interface Props {
   currentUser: DoctorProfile;
@@ -42,6 +53,7 @@ interface Props {
   onClose: () => void;
   onOpenDoctorProfile: (id: string) => void;
   onReportDoctor?: (name: string) => void;
+  onOpenFullMap?: () => void;
 }
 
 export const ChatModal: React.FC<Props> = ({
@@ -50,6 +62,7 @@ export const ChatModal: React.FC<Props> = ({
   onClose,
   onOpenDoctorProfile,
   onReportDoctor,
+  onOpenFullMap,
 }) => {
   // Theme state: light vs dark clinical mode
   const [chatTheme, setChatTheme] = useState<'dark' | 'light'>('light');
@@ -70,8 +83,19 @@ export const ChatModal: React.FC<Props> = ({
   // UI Panels
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [showCallNotice, setShowCallNotice] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+
+  // Voice / Video Call State
+  const [activeCall, setActiveCall] = useState<ActiveCallState | null>(null);
+
+  // Google Maps Picker & Preview Modal State
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [focusedLocation, setFocusedLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Typing Simulation
+  const [isPeerTyping, setIsPeerTyping] = useState(false);
 
   // Auto-scroll ref
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -101,6 +125,7 @@ export const ChatModal: React.FC<Props> = ({
     setActiveConv(conv);
     setLoadingMessages(true);
     setShowInfoPanel(false);
+    setReplyingTo(null);
     const res = await api.getMessages(conv.id);
     if (res.success) {
       setMessages(res.data);
@@ -125,20 +150,34 @@ export const ChatModal: React.FC<Props> = ({
   }, [messages.length, activeConv]);
 
   // Handle message submission
-  const handleSendMessage = async (e?: React.FormEvent, customAttachment?: Message['attachmentMetadata']) => {
+  const handleSendMessage = async (
+    e?: React.FormEvent,
+    customAttachment?: Message['attachmentMetadata'],
+    customType?: Message['attachmentType'],
+    overrideText?: string
+  ) => {
     if (e) e.preventDefault();
-    if (!messageText.trim() && !customAttachment) return;
+    const textToSend = overrideText || messageText.trim();
+    if (!textToSend && !customAttachment) return;
     if (!activeConv || sending) return;
 
     setSending(true);
-    const textToSend = messageText.trim() || 'Attached clinical case review document';
     setMessageText('');
+    const replyMeta = replyingTo
+      ? {
+          id: replyingTo.id,
+          senderName: replyingTo.senderName,
+          text: replyingTo.text.slice(0, 80),
+        }
+      : undefined;
+    setReplyingTo(null);
 
     const res = await api.sendMessage({
       conversationId: activeConv.id,
-      text: textToSend,
-      attachmentType: customAttachment ? 'case_ref' : undefined,
+      text: textToSend || 'Shared medical attachment',
+      attachmentType: customType || (customAttachment ? 'case_ref' : undefined),
       attachmentMetadata: customAttachment,
+      replyTo: replyMeta,
     });
 
     setSending(false);
@@ -154,7 +193,7 @@ export const ChatModal: React.FC<Props> = ({
             ? {
                 ...c,
                 lastMessage: {
-                  text: textToSend,
+                  text: textToSend || 'Shared medical attachment',
                   createdAt: res.data.createdAt,
                   senderId: currentUser.id,
                 },
@@ -163,6 +202,27 @@ export const ChatModal: React.FC<Props> = ({
             : c
         )
       );
+
+      // Simulate realistic collegiate reply if it's a location or clinical inquiry
+      if (customType === 'location' && !isPeerTyping) {
+        setTimeout(() => {
+          setIsPeerTyping(true);
+          setTimeout(() => {
+            setIsPeerTyping(false);
+            const peerReply: Message = {
+              id: `msg-peer-${Date.now()}`,
+              conversationId: activeConv.id,
+              senderId: activeConv.participant.id,
+              senderName: activeConv.participant.fullName,
+              senderAvatar: activeConv.participant.avatarUrl,
+              text: 'Received location pin. Coordinates confirmed on Google Maps. Preparing collegiate consult file.',
+              createdAt: new Date().toISOString(),
+              status: 'read',
+            };
+            setMessages((prev) => [...prev, peerReply]);
+          }, 2400);
+        }, 1200);
+      }
     }
   };
 
@@ -175,20 +235,124 @@ export const ChatModal: React.FC<Props> = ({
         summary: 'Pre-procedural assessment with complete patient PHI stripped. Educational peer exchange.',
         url: '#case-ref',
       };
+      handleSendMessage(undefined, attachment, 'case_ref', 'Attached de-identified echocardiogram review case');
     } else if (type === 'ecg') {
       attachment = {
         title: '12-Lead ECG Analysis: ST-Elevation Differential',
         summary: 'De-identified trace for residency training and diagnostic review.',
         url: '#ecg-ref',
       };
+      handleSendMessage(undefined, attachment, 'case_ref', 'Attached 12-lead ECG telemetry trace for review');
     } else {
       attachment = {
         title: 'Clinical Practice Guideline Summary',
         summary: 'Evidence-based consensus recommendation for collegiate discussion.',
         url: '#guidelines',
       };
+      handleSendMessage(undefined, attachment, 'article', 'Shared clinical practice guidelines summary');
     }
-    handleSendMessage(undefined, attachment);
+  };
+
+  // Handle Location Shared from Google Maps Picker
+  const handleShareLocationFromMap = (loc: {
+    title: string;
+    address: string;
+    lat: number;
+    lng: number;
+    isLive?: boolean;
+    durationMinutes?: number;
+  }) => {
+    const attachment: Message['attachmentMetadata'] = {
+      title: loc.title,
+      address: loc.address,
+      lat: loc.lat,
+      lng: loc.lng,
+      isLive: loc.isLive,
+      durationMinutes: loc.durationMinutes,
+      summary: loc.isLive
+        ? `Live location sharing active for ${loc.durationMinutes} minutes`
+        : `Medical Facility Location: ${loc.address}`,
+    };
+
+    const text = loc.isLive
+      ? `📍 Live Location Circle Shared (${loc.durationMinutes} mins)`
+      : `📍 Location Pin: ${loc.title}`;
+
+    handleSendMessage(undefined, attachment, 'location', text);
+    setIsMapPickerOpen(false);
+  };
+
+  // Voice and Video Calling Initiation
+  const startCall = (type: 'audio' | 'video') => {
+    if (!activeConv) return;
+    setActiveCall({
+      id: `call-${Date.now()}`,
+      type,
+      doctor: {
+        id: activeConv.participant.id,
+        fullName: activeConv.participant.fullName,
+        specialty: activeConv.participant.specialty,
+        avatarUrl: activeConv.participant.avatarUrl,
+        hospitalName: "Vinayaka Mission's Medical College Hospital",
+      },
+      status: 'ringing',
+    });
+
+    // Ringing -> Connected after 2 seconds
+    setTimeout(() => {
+      setActiveCall((prev) => (prev ? { ...prev, status: 'connected' } : null));
+    }, 1800);
+  };
+
+  // Simulate Incoming Call Test
+  const triggerIncomingCallSimulation = () => {
+    if (!activeConv) return;
+    setActiveCall({
+      id: `call-incoming-${Date.now()}`,
+      type: 'audio',
+      doctor: {
+        id: activeConv.participant.id,
+        fullName: activeConv.participant.fullName,
+        specialty: activeConv.participant.specialty,
+        avatarUrl: activeConv.participant.avatarUrl,
+        hospitalName: "Vinayaka Mission's Medical College Hospital",
+      },
+      status: 'ringing',
+      isIncoming: true,
+    });
+  };
+
+  const handleEndCall = (durationSeconds: number, callType: 'audio' | 'video') => {
+    if (activeCall && activeConv) {
+      const mins = Math.floor(durationSeconds / 60);
+      const secs = durationSeconds % 60;
+      const durationStr = `${mins}m ${secs}s`;
+
+      const attachment: Message['attachmentMetadata'] = {
+        title: callType === 'video' ? '📹 Clinical Video Consultation' : '📞 Encrypted Voice Consultation',
+        summary: `Consultation Duration: ${durationStr} • Secure Peer-to-Peer`,
+        callDurationSeconds: durationSeconds,
+        callStatus: 'ended',
+      };
+
+      handleSendMessage(
+        undefined,
+        attachment,
+        callType === 'video' ? 'video_call' : 'voice_call',
+        `${callType === 'video' ? 'Video' : 'Voice'} call ended (${durationStr})`
+      );
+    }
+    setActiveCall(null);
+  };
+
+  const handleCopyMessage = (msg: Message) => {
+    navigator.clipboard.writeText(msg.text);
+    setCopiedMsgId(msg.id);
+    setTimeout(() => setCopiedMsgId(null), 2000);
+  };
+
+  const handleDeleteMessage = (msgId: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== msgId));
   };
 
   const handleReportConversation = async (name: string) => {
@@ -229,724 +393,1025 @@ export const ChatModal: React.FC<Props> = ({
   const isDark = chatTheme === 'dark';
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Doctor Direct Messaging & Clinical Consultations"
-      className="fixed inset-0 z-50 bg-[#070B18]/80 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-4 animate-fadeIn"
-    >
-      {/* Main Messaging Container: Full-height native feel on mobile, 3-panel layout on desktop */}
-      <div
-        className={`w-full max-w-6xl h-full md:h-[88vh] md:max-h-[820px] rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-colors border ${
-          isDark
-            ? 'bg-[#09152C] text-slate-100 border-[#1E3E6E]/70'
-            : 'bg-white text-[#142238] border-[#E1E9F3]'
-        }`}
-      >
-        {/* =========================================================================
-            TOP GLOBAL BAR: Brand, Status, Theme Toggle & Modal Close
-            ========================================================================= */}
-        <div
-          className={`px-4 py-2.5 flex items-center justify-between border-b shrink-0 ${
-            isDark ? 'bg-[#0B1832] border-[#1E3E6E]/60' : 'bg-[#F6F9FD] border-[#E1E9F3]'
-          }`}
-        >
-          {/* Left Title */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1B4B82] via-[#3185FF] to-[#26D9C3] flex items-center justify-center text-white shadow-xs shrink-0">
-              <MessageSquare className="w-4 h-4 stroke-[2.2]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5 leading-none">
-                <span className="font-bold text-xs sm:text-sm text-[#12345B] dark:text-white">
-                  AMT Clinical Consults & Direct Messaging
-                </span>
-                <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#3185FF]/15 text-[#3185FF] dark:text-[#64B5F6]">
-                  <Lock className="w-2.5 h-2.5" />
-                  CONFIDENTIAL CHANNEL
-                </span>
-              </div>
-              <p className="text-[10px] text-[#63738A] dark:text-slate-400 mt-0.5">
-                Peer-to-peer doctor consultations · Strict PHI de-identification standard
-              </p>
-            </div>
-          </div>
+    <>
+      {/* Active Call Modal Overlay */}
+      {activeCall && (
+        <CallModal
+          call={activeCall}
+          currentUser={currentUser}
+          onEndCall={handleEndCall}
+          onAcceptIncoming={() => setActiveCall((prev) => (prev ? { ...prev, status: 'connected', isIncoming: false } : null))}
+          onDeclineIncoming={() => setActiveCall(null)}
+        />
+      )}
 
-          {/* Right Header Controls: Theme toggle & Close */}
-          <div className="flex items-center gap-1.5">
-            {/* Theme Toggle Button */}
-            <button
-              onClick={() => setChatTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
-              title={`Switch to ${isDark ? 'Light Clinical Mode' : 'Dark Hospital Mode'}`}
-              className={`p-1.5 rounded-xl transition-colors ${
-                isDark
-                  ? 'bg-[#122345] hover:bg-[#1A3362] text-amber-400'
-                  : 'bg-white hover:bg-[#EAF3FF] text-[#12345B] border border-[#E1E9F3]'
-              }`}
-            >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-
-            {/* Close Modal Button */}
-            <button
-              onClick={onClose}
-              aria-label="Close messaging modal"
-              className={`p-1.5 rounded-xl transition-colors ${
-                isDark
-                  ? 'hover:bg-white/10 text-slate-400 hover:text-white'
-                  : 'hover:bg-[#EAF3FF] text-[#63738A] hover:text-[#12345B]'
-              }`}
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* Google Maps Location Picker Modal */}
+      {isMapPickerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+          <div className="w-full max-w-4xl h-[85vh] bg-[#070D18] rounded-3xl overflow-hidden border border-[#16845B]/60 shadow-2xl flex flex-col">
+            <DoctorKnowledgeMap
+              currentUser={currentUser}
+              isChatPickerMode={true}
+              onShareLocationToChat={handleShareLocationFromMap}
+              onClose={() => setIsMapPickerOpen(false)}
+            />
           </div>
         </div>
+      )}
 
-        {/* =========================================================================
-            MAIN CHAT WORKSPACE: 3-column on Desktop / Single-view on Mobile
-            ========================================================================= */}
-        <div className="flex-1 flex min-h-0 overflow-hidden relative">
-          {/* =======================================================================
-              PANEL 1: CONVERSATION SIDEBAR (List, Search, Filters)
-              Visible on desktop, or on mobile when activeConv is null
-              ======================================================================= */}
+      {/* Main Messaging Dialog Container */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Doctor Direct Messaging & Clinical Consultations"
+        className="fixed inset-0 z-40 bg-[#070B18]/80 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-4 animate-fadeIn"
+      >
+        <div
+          className={`w-full max-w-6xl h-full md:h-[88vh] md:max-h-[840px] rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-colors border ${
+            isDark
+              ? 'bg-[#09152C] text-slate-100 border-[#1E3E6E]/70'
+              : 'bg-white text-[#142238] border-[#E1E9F3]'
+          }`}
+        >
+          {/* =========================================================================
+              TOP GLOBAL BAR: Brand, Status, Map Shortcut, Theme Toggle & Modal Close
+              ========================================================================= */}
           <div
-            className={`w-full md:w-80 lg:w-88 flex flex-col shrink-0 border-r transition-colors ${
-              activeConv ? 'hidden md:flex' : 'flex'
-            } ${
-              isDark ? 'bg-[#081226] border-[#1E3E6E]/60' : 'bg-white border-[#E1E9F3]'
+            className={`px-4 py-2.5 flex items-center justify-between border-b shrink-0 ${
+              isDark ? 'bg-[#0B1832] border-[#1E3E6E]/60' : 'bg-[#F6F9FD] border-[#E1E9F3]'
             }`}
           >
-            {/* Search Input Bar */}
-            <div className="p-3 border-b border-inherit space-y-2">
-              <div className="relative">
-                <Search
-                  className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${
-                    isDark ? 'text-slate-400' : 'text-[#63738A]'
-                  }`}
-                />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search doctors, specialties, topics..."
-                  className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none transition-colors ${
-                    isDark
-                      ? 'bg-[#0D1C3B] border border-[#1E3E6E] text-white placeholder-slate-500 focus:border-[#3185FF]'
-                      : 'bg-[#F6F9FD] border border-[#D5E1F0] text-[#142238] placeholder-slate-400 focus:border-[#246BCE]'
-                  }`}
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-200"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+            {/* Left Title */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1B4B82] via-[#3185FF] to-[#26D9C3] flex items-center justify-center text-white shadow-xs shrink-0">
+                <MessageSquare className="w-4 h-4 stroke-[2.2]" />
               </div>
-
-              {/* Filter Tabs (All, Unread, Mentorship, Hospital) */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
-                {(['all', 'unread', 'mentorship', 'institution'] as const).map((tab) => {
-                  const isActive = filterTab === tab;
-                  const labelMap = {
-                    all: 'All',
-                    unread: 'Unread',
-                    mentorship: 'Mentorship',
-                    institution: 'Hospital',
-                  };
-                  return (
-                    <button
-                      key={tab}
-                      onClick={() => setFilterTab(tab)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize whitespace-nowrap transition-colors ${
-                        isActive
-                          ? isDark
-                            ? 'bg-[#3185FF] text-white shadow-2xs'
-                            : 'bg-[#12345B] text-white shadow-2xs'
-                          : isDark
-                          ? 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                          : 'text-[#63738A] hover:text-[#12345B] hover:bg-[#F6F9FD]'
-                      }`}
-                    >
-                      {labelMap[tab]}
-                    </button>
-                  );
-                })}
+              <div>
+                <div className="flex items-center gap-1.5 leading-none">
+                  <span className="font-bold text-xs sm:text-sm text-[#12345B] dark:text-white">
+                    AMT Clinical Consults & Direct Messaging
+                  </span>
+                  <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#3185FF]/15 text-[#3185FF] dark:text-[#64B5F6]">
+                    <Lock className="w-2.5 h-2.5" />
+                    CONFIDENTIAL CHANNEL
+                  </span>
+                </div>
+                <p className="text-[10px] text-[#63738A] dark:text-slate-400 mt-0.5">
+                  Peer-to-peer doctor consultations · Strict PHI de-identification standard
+                </p>
               </div>
             </div>
 
-            {/* Conversation List Scroll Area */}
-            <div className="flex-1 overflow-y-auto divide-y divide-inherit">
-              {loading ? (
-                <div className="p-8 text-center text-xs text-slate-400">
-                  <div className="w-6 h-6 border-2 border-[#3185FF]/30 border-t-[#3185FF] rounded-full animate-spin mx-auto mb-2" />
-                  Loading consultations...
-                </div>
-              ) : filteredConversations.length === 0 ? (
-                <div className="p-8 text-center space-y-2">
-                  <div className="w-10 h-10 rounded-2xl bg-white/5 mx-auto flex items-center justify-center text-slate-400">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <p className="text-xs font-semibold text-slate-400">No conversations found</p>
-                  <p className="text-[11px] text-slate-500">
-                    Try another search term or start a consultation from Doctor Discover.
-                  </p>
-                </div>
-              ) : (
-                filteredConversations.map((conv) => {
-                  const isSelected = activeConv?.id === conv.id;
-                  return (
-                    <button
-                      key={conv.id}
-                      onClick={() => selectConversation(conv)}
-                      className={`w-full p-3.5 flex items-start gap-3 transition-all text-left relative ${
-                        isSelected
-                          ? isDark
-                            ? 'bg-[#102347] border-l-4 border-l-[#3185FF]'
-                            : 'bg-[#EAF3FF]/80 border-l-4 border-l-[#246BCE]'
-                          : isDark
-                          ? 'hover:bg-[#0D1C3B]/60'
-                          : 'hover:bg-[#F6F9FD]'
-                      }`}
-                    >
-                      {/* Avatar with Online Activity Indicator */}
-                      <div className="relative shrink-0">
-                        <img
-                          src={conv.participant.avatarUrl}
-                          alt={conv.participant.fullName}
-                          className="w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 bg-slate-100"
-                        />
-                        {conv.participant.isOnline !== false && (
-                          <span
-                            title="Online for consult"
-                            className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#16845B] ring-2 ring-white dark:ring-[#081226]"
-                          />
-                        )}
-                      </div>
+            {/* Right Header Controls: Map shortcut, Theme toggle & Close */}
+            <div className="flex items-center gap-1.5">
+              {/* Medical Map Quick Access */}
+              <button
+                onClick={() => setIsMapPickerOpen(true)}
+                title="Explore Nearby Doctor Circles & Hospitals (Google Maps)"
+                className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#16845B]/15 hover:bg-[#16845B]/25 text-[#16845B] dark:text-[#22C55E] text-xs font-semibold border border-[#16845B]/30 transition-colors"
+              >
+                <Compass className="w-3.5 h-3.5 animate-spin-slow" />
+                <span>Live Circles Map</span>
+              </button>
 
-                      {/* Info & Last Message */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <div className="flex items-center gap-1.5 truncate">
+              {/* Theme Toggle Button */}
+              <button
+                onClick={() => setChatTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+                title={`Switch to ${isDark ? 'Light Clinical Mode' : 'Dark Hospital Mode'}`}
+                className={`p-1.5 rounded-xl transition-colors ${
+                  isDark
+                    ? 'bg-[#122345] hover:bg-[#1A3362] text-amber-400'
+                    : 'bg-white hover:bg-[#EAF3FF] text-[#12345B] border border-[#E1E9F3]'
+                }`}
+              >
+                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+
+              {/* Close Modal Button */}
+              <button
+                onClick={onClose}
+                aria-label="Close messaging modal"
+                className={`p-1.5 rounded-xl transition-colors ${
+                  isDark
+                    ? 'hover:bg-white/10 text-slate-400 hover:text-white'
+                    : 'hover:bg-[#EAF3FF] text-[#63738A] hover:text-[#12345B]'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* =========================================================================
+              MAIN CHAT WORKSPACE: 3-column on Desktop / Single-view on Mobile
+              ========================================================================= */}
+          <div className="flex-1 flex min-h-0 overflow-hidden relative">
+            {/* =======================================================================
+                PANEL 1: CONVERSATION SIDEBAR (List, Search, Filters)
+                ======================================================================= */}
+            <div
+              className={`w-full md:w-80 lg:w-88 flex flex-col shrink-0 border-r transition-colors ${
+                activeConv ? 'hidden md:flex' : 'flex'
+              } ${
+                isDark ? 'bg-[#081226] border-[#1E3E6E]/60' : 'bg-white border-[#E1E9F3]'
+              }`}
+            >
+              {/* Search Input Bar */}
+              <div className="p-3 border-b border-inherit space-y-2">
+                <div className="relative">
+                  <Search
+                    className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${
+                      isDark ? 'text-slate-400' : 'text-[#63738A]'
+                    }`}
+                  />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search doctors, specialties, topics..."
+                    className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none transition-colors ${
+                      isDark
+                        ? 'bg-[#0D1C3B] border border-[#1E3E6E] text-white placeholder-slate-500 focus:border-[#3185FF]'
+                        : 'bg-[#F6F9FD] border border-[#D5E1F0] text-[#142238] placeholder-slate-400 focus:border-[#246BCE]'
+                    }`}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-200"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
+                  {(['all', 'unread', 'mentorship', 'institution'] as const).map((tab) => {
+                    const isActive = filterTab === tab;
+                    const labelMap = {
+                      all: 'All',
+                      unread: 'Unread',
+                      mentorship: 'Mentorship',
+                      institution: 'Hospital',
+                    };
+                    return (
+                      <button
+                        key={tab}
+                        onClick={() => setFilterTab(tab)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize whitespace-nowrap transition-colors ${
+                          isActive
+                            ? isDark
+                              ? 'bg-[#3185FF] text-white shadow-2xs'
+                              : 'bg-[#12345B] text-white shadow-2xs'
+                            : isDark
+                            ? 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                            : 'text-[#63738A] hover:text-[#12345B] hover:bg-[#F6F9FD]'
+                        }`}
+                      >
+                        {labelMap[tab]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Conversation List Scroll Area */}
+              <div className="flex-1 overflow-y-auto divide-y divide-inherit">
+                {loading ? (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    <div className="w-6 h-6 border-2 border-[#3185FF]/30 border-t-[#3185FF] rounded-full animate-spin mx-auto mb-2" />
+                    Loading consultations...
+                  </div>
+                ) : filteredConversations.length === 0 ? (
+                  <div className="p-8 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-2xl bg-white/5 mx-auto flex items-center justify-center text-slate-400">
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-semibold text-slate-400">No conversations found</p>
+                    <p className="text-[11px] text-slate-500">
+                      Try another search term or start a consultation from Doctor Discover.
+                    </p>
+                  </div>
+                ) : (
+                  filteredConversations.map((conv) => {
+                    const isSelected = activeConv?.id === conv.id;
+                    return (
+                      <button
+                        key={conv.id}
+                        onClick={() => selectConversation(conv)}
+                        className={`w-full p-3.5 flex items-start gap-3 transition-all text-left relative ${
+                          isSelected
+                            ? isDark
+                              ? 'bg-[#102347] border-l-4 border-l-[#3185FF]'
+                              : 'bg-[#EAF3FF]/80 border-l-4 border-l-[#246BCE]'
+                            : isDark
+                            ? 'hover:bg-[#0D1C3B]/60'
+                            : 'hover:bg-[#F6F9FD]'
+                        }`}
+                      >
+                        {/* Avatar with Online Activity Indicator */}
+                        <div className="relative shrink-0">
+                          <img
+                            src={conv.participant.avatarUrl}
+                            alt={conv.participant.fullName}
+                            className="w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 bg-slate-100"
+                          />
+                          {conv.participant.isOnline !== false && (
                             <span
-                              className={`text-xs font-bold truncate ${
-                                isDark ? 'text-white' : 'text-[#12345B]'
+                              title="Online for consult"
+                              className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#16845B] ring-2 ring-white dark:ring-[#081226]"
+                            />
+                          )}
+                        </div>
+
+                        {/* Info & Last Message */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span
+                                className={`text-xs font-bold truncate ${
+                                  isDark ? 'text-white' : 'text-[#12345B]'
+                                }`}
+                              >
+                                {conv.participant.fullName}
+                              </span>
+                              <VerificationBadge
+                                status={conv.participant.verificationStatus}
+                                showText={false}
+                              />
+                            </div>
+                            {conv.lastMessage && (
+                              <span className="text-[10px] text-slate-400 shrink-0">
+                                {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[10px] font-semibold text-[#3185FF] dark:text-[#64B5F6] truncate">
+                              {conv.participant.specialty}
+                            </span>
+                            <span className="text-[10px] text-slate-400">·</span>
+                            <span className="text-[10px] text-slate-500 capitalize truncate">
+                              {conv.type}
+                            </span>
+                          </div>
+
+                          {conv.lastMessage && (
+                            <p
+                              className={`text-xs truncate mt-1 leading-snug ${
+                                conv.unreadCount > 0
+                                  ? 'font-semibold text-[#12345B] dark:text-white'
+                                  : 'text-slate-500 dark:text-slate-400'
                               }`}
                             >
-                              {conv.participant.fullName}
-                            </span>
-                            <VerificationBadge
-                              status={conv.participant.verificationStatus}
-                              showText={false}
-                            />
+                              {conv.lastMessage.text}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Unread badge */}
+                        {conv.unreadCount > 0 && (
+                          <span className="w-5 h-5 rounded-full bg-[#C43D4B] text-white font-bold text-[10px] flex items-center justify-center shrink-0 shadow-xs ring-1 ring-white">
+                            {conv.unreadCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* =======================================================================
+                PANEL 2: ACTIVE CONVERSATION (Header, Body, Messages, Composer)
+                ======================================================================= */}
+            {activeConv ? (
+              <div className="flex-1 flex flex-col min-h-0 bg-[#F8FAFD] dark:bg-[#070F20] transition-colors">
+                {/* Active Conversation Sticky Header */}
+                <div
+                  className={`px-3 sm:px-4 py-2.5 border-b flex items-center justify-between shrink-0 transition-colors ${
+                    isDark ? 'bg-[#0B1832] border-[#1E3E6E]/60' : 'bg-white border-[#E1E9F3]'
+                  }`}
+                >
+                  {/* Participant Details */}
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <button
+                      onClick={() => setActiveConv(null)}
+                      aria-label="Back to conversations list"
+                      className="md:hidden p-1.5 -ml-1 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+
+                    <div className="relative shrink-0">
+                      <img
+                        src={activeConv.participant.avatarUrl}
+                        alt={activeConv.participant.fullName}
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 bg-slate-100"
+                      />
+                      {activeConv.participant.isOnline !== false && (
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#16845B] ring-2 ring-white dark:ring-[#0B1832]" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 leading-tight">
+                        <span className="text-xs sm:text-sm font-bold truncate text-[#12345B] dark:text-white">
+                          {activeConv.participant.fullName}
+                        </span>
+                        <VerificationBadge
+                          status={activeConv.participant.verificationStatus}
+                          showText={false}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] leading-tight text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                        <span className="text-[#3185FF] dark:text-[#64B5F6] font-semibold truncate">
+                          {activeConv.participant.specialty}
+                        </span>
+                        <span>·</span>
+                        <span className="text-[#16845B] font-medium flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#16845B] animate-pulse" />
+                          Online for Consult
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Action Controls: Voice, Video, Maps, Info, Incoming test */}
+                  <div className="flex items-center gap-1 sm:gap-1.5">
+                    {/* Audio Call Button */}
+                    <button
+                      onClick={() => startCall('audio')}
+                      title="Start encrypted collegiate audio call"
+                      className={`p-2 rounded-xl transition-all active:scale-95 ${
+                        isDark
+                          ? 'hover:bg-white/10 text-slate-300 hover:text-emerald-400'
+                          : 'hover:bg-[#EAF3FF] text-[#12345B] hover:text-[#16845B]'
+                      }`}
+                    >
+                      <Phone className="w-4 h-4" />
+                    </button>
+
+                    {/* Video Call Button */}
+                    <button
+                      onClick={() => startCall('video')}
+                      title="Start collegiate video case review"
+                      className={`p-2 rounded-xl transition-all active:scale-95 ${
+                        isDark
+                          ? 'hover:bg-white/10 text-slate-300 hover:text-sky-400'
+                          : 'hover:bg-[#EAF3FF] text-[#12345B] hover:text-[#246BCE]'
+                      }`}
+                    >
+                      <Video className="w-4 h-4" />
+                    </button>
+
+                    {/* Google Maps Location Button */}
+                    <button
+                      onClick={() => setIsMapPickerOpen(true)}
+                      title="Share Hospital or Clinic Location (Google Maps)"
+                      className={`p-2 rounded-xl transition-all active:scale-95 ${
+                        isDark
+                          ? 'hover:bg-white/10 text-slate-300 hover:text-emerald-400'
+                          : 'hover:bg-[#EAF3FF] text-[#12345B] hover:text-[#16845B]'
+                      }`}
+                    >
+                      <MapPin className="w-4 h-4" />
+                    </button>
+
+                    {/* Test Incoming Call button */}
+                    <button
+                      onClick={triggerIncomingCallSimulation}
+                      title="Simulate receiving an incoming call from this doctor"
+                      className="hidden lg:flex items-center gap-1 px-2 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-[#16845B] dark:text-[#22C55E] text-[10px] font-bold border border-emerald-500/20"
+                    >
+                      <Radio className="w-3 h-3 animate-pulse" />
+                      Test Incoming
+                    </button>
+
+                    {/* Toggle Participant Info Panel (Desktop) */}
+                    <button
+                      onClick={() => setShowInfoPanel(!showInfoPanel)}
+                      title="View doctor professional summary"
+                      className={`hidden sm:flex p-2 rounded-xl transition-colors ${
+                        showInfoPanel
+                          ? isDark
+                            ? 'bg-[#3185FF] text-white'
+                            : 'bg-[#12345B] text-white'
+                          : isDark
+                          ? 'hover:bg-white/10 text-slate-300'
+                          : 'hover:bg-[#EAF3FF] text-[#12345B]'
+                      }`}
+                    >
+                      <Info className="w-4 h-4" />
+                    </button>
+
+                    {/* Report action */}
+                    <button
+                      onClick={() => handleReportConversation(activeConv.participant.fullName)}
+                      title="Report conversation conduct"
+                      className={`p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors`}
+                    >
+                      <Flag className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Report Success Toast */}
+                {reportSuccess && (
+                  <div className="px-4 py-2 bg-rose-950 border-b border-rose-800 text-rose-200 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-rose-400" />
+                    <span>Report submitted to AMT Healthcare Moderation Board for review.</span>
+                  </div>
+                )}
+
+                {/* Strict PHI Safety Banner */}
+                <div
+                  className={`px-3 py-1.5 border-b text-[10px] text-center flex items-center justify-center gap-1.5 shrink-0 ${
+                    isDark
+                      ? 'bg-[#0B1A36] border-[#1E3E6E]/60 text-slate-300'
+                      : 'bg-[#EAF3FF]/80 border-[#246BCE]/20 text-[#12345B]'
+                  }`}
+                >
+                  <Lock className="w-3 h-3 text-[#3185FF] shrink-0" />
+                  <span>
+                    <strong>Strict Patient PHI De-identification Standard:</strong> Do not share raw patient MRNs or identifiable health information in collegiate chat.
+                  </span>
+                </div>
+
+                {/* Message History Body */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 min-h-0">
+                  {/* Date separator */}
+                  <div className="flex items-center justify-center my-2">
+                    <span
+                      className={`px-3 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
+                        isDark
+                          ? 'bg-white/10 text-slate-400'
+                          : 'bg-[#E1E9F3] text-[#63738A]'
+                      }`}
+                    >
+                      Today, October 20, 2026
+                    </span>
+                  </div>
+
+                  {loadingMessages ? (
+                    <div className="py-12 text-center text-xs text-slate-400">
+                      <div className="w-6 h-6 border-2 border-[#3185FF]/30 border-t-[#3185FF] rounded-full animate-spin mx-auto mb-2" />
+                      Loading encrypted message history...
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="py-12 text-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-[#3185FF]/10 text-[#3185FF] mx-auto flex items-center justify-center">
+                        <Sparkles className="w-6 h-6" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-400">Consultation Channel Open</p>
+                      <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                        Send a message to Dr. {activeConv.participant.fullName} to discuss clinical questions, mentorship, or peer case studies.
+                      </p>
+                    </div>
+                  ) : (
+                    messages.map((msg, index) => {
+                      const isMe = msg.senderId === currentUser.id;
+                      const prevMsg = messages[index - 1];
+                      const isSameSender = prevMsg && prevMsg.senderId === msg.senderId;
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} ${
+                            isSameSender ? 'mt-1' : 'mt-3'
+                          }`}
+                        >
+                          {/* Replied To Quote Bubble */}
+                          {msg.replyTo && (
+                            <div
+                              className={`text-[10px] px-3 py-1 mb-1 rounded-lg border-l-2 max-w-[80%] truncate ${
+                                isMe
+                                  ? 'bg-white/10 text-slate-200 border-[#26D9C3]'
+                                  : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-slate-400 border-[#3185FF]'
+                              }`}
+                            >
+                              <span className="font-bold">{msg.replyTo.senderName}: </span>
+                              <span className="italic">{msg.replyTo.text}</span>
+                            </div>
+                          )}
+
+                          {/* Main Message Bubble */}
+                          <div
+                            className={`max-w-[88%] sm:max-w-[75%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-2xs break-words relative ${
+                              isMe
+                                ? isDark
+                                  ? 'bg-gradient-to-r from-[#1E56A0] to-[#246BCE] text-white rounded-tr-xs'
+                                  : 'bg-gradient-to-r from-[#246BCE] to-[#1E88E5] text-white rounded-tr-xs'
+                                : isDark
+                                ? 'bg-[#102347] text-slate-100 border border-[#1E3E6E] rounded-tl-xs'
+                                : 'bg-white text-[#142238] border border-[#E1E9F3] rounded-tl-xs'
+                            }`}
+                          >
+                            <p className="whitespace-pre-line selection:bg-teal-500 selection:text-white">
+                              {msg.text}
+                            </p>
+
+                            {/* GOOGLE MAPS LOCATION ATTACHMENT CARD */}
+                            {msg.attachmentType === 'location' && msg.attachmentMetadata && (
+                              <div
+                                className={`mt-2.5 p-3 rounded-2xl border space-y-2 text-left shadow-md ${
+                                  isMe
+                                    ? 'bg-black/25 border-white/20 text-white'
+                                    : isDark
+                                    ? 'bg-[#060D1A] border-[#16845B]/60 text-slate-100'
+                                    : 'bg-emerald-50/70 border-emerald-200 text-[#12345B]'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-xl bg-[#16845B] text-white flex items-center justify-center shrink-0 shadow-sm">
+                                      <MapPin className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                      <h5 className="font-bold text-xs leading-tight">
+                                        {msg.attachmentMetadata.title}
+                                      </h5>
+                                      <p className="text-[10px] opacity-80 mt-0.5">
+                                        {msg.attachmentMetadata.address}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {msg.attachmentMetadata.isLive && (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px] font-bold flex items-center gap-1 border border-emerald-500/40 shrink-0">
+                                      <Radio className="w-2.5 h-2.5 animate-pulse" />
+                                      LIVE CIRCLE
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Simulated Google Maps Static Preview Map */}
+                                <div className="w-full h-28 rounded-xl overflow-hidden relative border border-white/10 group cursor-pointer"
+                                  onClick={() => setIsMapPickerOpen(true)}
+                                >
+                                  <img
+                                    src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=600&auto=format&fit=crop&q=80"
+                                    alt="Google Maps Medical Location"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <div className="w-9 h-9 rounded-full bg-[#16845B] border-2 border-white shadow-xl flex items-center justify-center text-white">
+                                      <MapPin className="w-5 h-5 animate-bounce-subtle" />
+                                    </div>
+                                    {msg.attachmentMetadata.isLive && (
+                                      <div className="absolute w-20 h-20 rounded-full border border-emerald-400 bg-emerald-500/20 animate-ping pointer-events-none" />
+                                    )}
+                                  </div>
+                                  <div className="absolute bottom-1 right-2 px-1.5 py-0.5 bg-black/70 rounded text-[9px] text-white font-mono">
+                                    Google Maps Platform
+                                  </div>
+                                </div>
+
+                                {/* Action links */}
+                                <div className="flex items-center justify-between pt-1 text-[11px] font-semibold">
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsMapPickerOpen(true)}
+                                    className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-bold underline"
+                                  >
+                                    <Compass className="w-3.5 h-3.5" /> Open in Live Map
+                                  </button>
+                                  {msg.attachmentMetadata.lat && msg.attachmentMetadata.lng && (
+                                    <a
+                                      href={`https://www.google.com/maps/dir/?api=1&destination=${msg.attachmentMetadata.lat},${msg.attachmentMetadata.lng}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sky-300 hover:underline flex items-center gap-1 text-[10px]"
+                                    >
+                                      <Navigation className="w-3 h-3" /> Get Directions
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* CLINICAL CALL LOG ATTACHMENT CARD */}
+                            {(msg.attachmentType === 'voice_call' || msg.attachmentType === 'video_call') && msg.attachmentMetadata && (
+                              <div
+                                className={`mt-2 p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
+                                  isMe
+                                    ? 'bg-black/20 border-white/20 text-white'
+                                    : isDark
+                                    ? 'bg-[#070F20] border-[#1E3E6E] text-slate-100'
+                                    : 'bg-sky-50 border-sky-200 text-[#12345B]'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-full bg-[#16845B]/20 border border-[#16845B]/50 flex items-center justify-center text-[#22C55E]">
+                                    {msg.attachmentType === 'video_call' ? (
+                                      <Video className="w-4 h-4" />
+                                    ) : (
+                                      <Phone className="w-4 h-4" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <h5 className="font-bold text-[11px] leading-tight">
+                                      {msg.attachmentMetadata.title}
+                                    </h5>
+                                    <p className="text-[10px] opacity-80 mt-0.5">
+                                      {msg.attachmentMetadata.summary}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => startCall(msg.attachmentType === 'video_call' ? 'video' : 'audio')}
+                                  className="px-2.5 py-1 rounded-lg bg-[#16845B] hover:bg-[#126b49] text-white text-[10px] font-bold shadow-xs whitespace-nowrap"
+                                >
+                                  Call Again
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Case / ECG Reference Attachment */}
+                            {msg.attachmentType === 'case_ref' && msg.attachmentMetadata && (
+                              <div
+                                className={`mt-2.5 p-2.5 rounded-xl border space-y-1 text-left ${
+                                  isMe
+                                    ? 'bg-black/15 border-white/20 text-white'
+                                    : isDark
+                                    ? 'bg-[#070F20] border-[#1E3E6E] text-slate-200'
+                                    : 'bg-[#F6F9FD] border-[#D5E1F0] text-[#12345B]'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                                  <FileText className="w-3.5 h-3.5 text-[#26D9C3] shrink-0" />
+                                  <span className="truncate">{msg.attachmentMetadata.title}</span>
+                                </div>
+                                {msg.attachmentMetadata.summary && (
+                                  <p className="text-[10px] opacity-90 leading-normal">
+                                    {msg.attachmentMetadata.summary}
+                                  </p>
+                                )}
+                                <div className="pt-1 flex items-center justify-between text-[9px] font-semibold opacity-80 uppercase tracking-wider">
+                                  <span>De-identified Patient Record</span>
+                                  <span className="text-[#26D9C3]">Verified Case</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Message Action Bar (Hover on desktop, tap on mobile) */}
+                            <div className="absolute right-2 -bottom-3 hidden group-hover:flex items-center gap-1 bg-slate-900/90 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-white/10 text-slate-300 text-[10px] shadow-lg z-10">
+                              <button
+                                type="button"
+                                onClick={() => setReplyingTo(msg)}
+                                title="Reply to message"
+                                className="p-1 hover:text-white"
+                              >
+                                <CornerUpLeft className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyMessage(msg)}
+                                title="Copy text"
+                                className="p-1 hover:text-white"
+                              >
+                                {copiedMsgId === msg.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                              </button>
+                              {isMe && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteMessage(msg.id)}
+                                  title="Delete message"
+                                  className="p-1 hover:text-red-400"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {conv.lastMessage && (
-                            <span className="text-[10px] text-slate-400 shrink-0">
-                              {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
+
+                          {/* Timestamp and Delivery State */}
+                          <div className="flex items-center gap-1 text-[10px] text-slate-400 px-1 mt-0.5">
+                            <span>
+                              {new Date(msg.createdAt).toLocaleTimeString([], {
                                 hour: '2-digit',
                                 minute: '2-digit',
                               })}
                             </span>
-                          )}
+                            {isMe && (
+                              <span>
+                                {msg.status === 'read' ? (
+                                  <span title="Read by doctor" className="inline-flex items-center">
+                                    <CheckCheck className="w-3 h-3 text-[#26D9C3]" />
+                                  </span>
+                                ) : msg.status === 'delivered' ? (
+                                  <span title="Delivered" className="inline-flex items-center">
+                                    <CheckCheck className="w-3 h-3 text-slate-400" />
+                                  </span>
+                                ) : (
+                                  <span title="Sent" className="inline-flex items-center">
+                                    <Check className="w-3 h-3 text-slate-400" />
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                      );
+                    })
+                  )}
 
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <span className="text-[10px] font-semibold text-[#3185FF] dark:text-[#64B5F6] truncate">
-                            {conv.participant.specialty}
-                          </span>
-                          <span className="text-[10px] text-slate-400">·</span>
-                          <span className="text-[10px] text-slate-500 capitalize truncate">
-                            {conv.type}
-                          </span>
-                        </div>
-
-                        {conv.lastMessage && (
-                          <p
-                            className={`text-xs truncate mt-1 leading-snug ${
-                              conv.unreadCount > 0
-                                ? 'font-semibold text-[#12345B] dark:text-white'
-                                : 'text-slate-500 dark:text-slate-400'
-                            }`}
-                          >
-                            {conv.lastMessage.text}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Unread badge */}
-                      {conv.unreadCount > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-[#C43D4B] text-white font-bold text-[10px] flex items-center justify-center shrink-0 shadow-xs ring-1 ring-white">
-                          {conv.unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* =======================================================================
-              PANEL 2: ACTIVE CONVERSATION (Header, Body, Messages, Composer)
-              Visible when activeConv is present (or full view on mobile)
-              ======================================================================= */}
-          {activeConv ? (
-            <div className="flex-1 flex flex-col min-h-0 bg-[#F8FAFD] dark:bg-[#070F20] transition-colors">
-              {/* Active Conversation Header */}
-              <div
-                className={`px-3 sm:px-4 py-2.5 border-b flex items-center justify-between shrink-0 transition-colors ${
-                  isDark ? 'bg-[#0B1832] border-[#1E3E6E]/60' : 'bg-white border-[#E1E9F3]'
-                }`}
-              >
-                {/* Participant Details */}
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  {/* Mobile Back Button */}
-                  <button
-                    onClick={() => setActiveConv(null)}
-                    aria-label="Back to conversations list"
-                    className="md:hidden p-1.5 -ml-1 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-
-                  {/* Avatar */}
-                  <div className="relative shrink-0">
-                    <img
-                      src={activeConv.participant.avatarUrl}
-                      alt={activeConv.participant.fullName}
-                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 bg-slate-100"
-                    />
-                    {activeConv.participant.isOnline !== false && (
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#16845B] ring-2 ring-white dark:ring-[#0B1832]" />
-                    )}
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 leading-tight">
-                      <span className="text-xs sm:text-sm font-bold truncate text-[#12345B] dark:text-white">
-                        {activeConv.participant.fullName}
-                      </span>
-                      <VerificationBadge
-                        status={activeConv.participant.verificationStatus}
-                        showText={false}
-                      />
+                  {/* Peer Typing Indicator */}
+                  {isPeerTyping && (
+                    <div className="flex items-center gap-2 mt-2 text-slate-400 text-xs italic">
+                      <div className="w-2 h-2 rounded-full bg-[#16845B] animate-ping" />
+                      <span>Dr. {activeConv.participant.fullName.split(' ')[0]} is typing clinical notes...</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] leading-tight text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                      <span className="text-[#3185FF] dark:text-[#64B5F6] font-semibold truncate">
-                        {activeConv.participant.specialty}
-                      </span>
-                      <span>·</span>
-                      <span className="text-[#16845B] font-medium">Online for Consult</span>
-                    </div>
-                  </div>
+                  )}
+
+                  <div ref={messagesEndRef} />
                 </div>
 
-                {/* Right Action Controls: Voice, Video, Profile Info, Report */}
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <button
-                    onClick={() => setShowCallNotice('Voice Consultation Channel')}
-                    title="Start encrypted collegiate audio consult"
-                    className={`p-2 rounded-xl transition-colors ${
-                      isDark
-                        ? 'hover:bg-white/10 text-slate-300'
-                        : 'hover:bg-[#EAF3FF] text-[#12345B]'
+                {/* Replying To Quote Bar */}
+                {replyingTo && (
+                  <div
+                    className={`px-4 py-2 border-t flex items-center justify-between text-xs ${
+                      isDark ? 'bg-[#0E2042] border-[#1E3E6E] text-slate-200' : 'bg-[#EAF3FF] border-[#D5E1F0] text-[#12345B]'
                     }`}
                   >
-                    <Phone className="w-4 h-4" />
-                  </button>
+                    <div className="flex items-center gap-2 truncate">
+                      <CornerUpLeft className="w-4 h-4 text-[#3185FF] shrink-0" />
+                      <span className="truncate">
+                        Replying to <strong>{replyingTo.senderName}</strong>: {replyingTo.text.slice(0, 70)}...
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setReplyingTo(null)}
+                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
 
-                  <button
-                    onClick={() => setShowCallNotice('Video Tele-Case Review')}
-                    title="Start collegiate video case review"
-                    className={`p-2 rounded-xl transition-colors ${
-                      isDark
-                        ? 'hover:bg-white/10 text-slate-300'
-                        : 'hover:bg-[#EAF3FF] text-[#12345B]'
+                {/* Clinical Attachment Quick Menu */}
+                {showAttachMenu && (
+                  <div
+                    className={`p-3 border-t grid grid-cols-2 sm:grid-cols-4 gap-2 animate-fadeIn shrink-0 ${
+                      isDark ? 'bg-[#0D1C3B] border-[#1E3E6E]' : 'bg-[#EAF3FF] border-[#CAD8E8]'
                     }`}
                   >
-                    <Video className="w-4 h-4" />
-                  </button>
+                    {/* Share Google Maps Location Pin */}
+                    <button
+                      onClick={() => {
+                        setShowAttachMenu(false);
+                        setIsMapPickerOpen(true);
+                      }}
+                      className="p-2.5 rounded-xl bg-white dark:bg-[#122345] border border-[#CAD8E8] dark:border-[#1E3E6E] text-left hover:scale-[1.02] transition-transform text-xs group"
+                    >
+                      <MapPin className="w-4 h-4 text-emerald-500 mb-1 group-hover:scale-110 transition-transform" />
+                      <span className="font-bold text-[11px] block truncate">Google Maps Location</span>
+                      <span className="text-[9px] text-slate-500 block truncate">Clinic / Live Circle</span>
+                    </button>
 
-                  {/* Toggle Participant Info Panel (Desktop) */}
+                    {/* Echo / Case Summary */}
+                    <button
+                      onClick={() => handleAttachTemplate('case')}
+                      className="p-2.5 rounded-xl bg-white dark:bg-[#122345] border border-[#CAD8E8] dark:border-[#1E3E6E] text-left hover:scale-[1.02] transition-transform text-xs"
+                    >
+                      <FileText className="w-4 h-4 text-[#3185FF] mb-1" />
+                      <span className="font-bold text-[11px] block truncate">Echo / Case Study</span>
+                      <span className="text-[9px] text-slate-500 block truncate">De-identified loop</span>
+                    </button>
+
+                    {/* 12-Lead ECG Analysis */}
+                    <button
+                      onClick={() => handleAttachTemplate('ecg')}
+                      className="p-2.5 rounded-xl bg-white dark:bg-[#122345] border border-[#CAD8E8] dark:border-[#1E3E6E] text-left hover:scale-[1.02] transition-transform text-xs"
+                    >
+                      <Activity className="w-4 h-4 text-[#26D9C3] mb-1" />
+                      <span className="font-bold text-[11px] block truncate">12-Lead ECG Analysis</span>
+                      <span className="text-[9px] text-slate-500 block truncate">Telemetry strip</span>
+                    </button>
+
+                    {/* Clinical Practice Guideline */}
+                    <button
+                      onClick={() => handleAttachTemplate('guideline')}
+                      className="p-2.5 rounded-xl bg-white dark:bg-[#122345] border border-[#CAD8E8] dark:border-[#1E3E6E] text-left hover:scale-[1.02] transition-transform text-xs"
+                    >
+                      <BookOpen className="w-4 h-4 text-amber-500 mb-1" />
+                      <span className="font-bold text-[11px] block truncate">Practice Guideline</span>
+                      <span className="text-[9px] text-slate-500 block truncate">Evidence consensus</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Message Composer Form */}
+                <form
+                  onSubmit={(e) => handleSendMessage(e)}
+                  className={`p-2.5 sm:p-3 border-t flex items-center gap-2 shrink-0 ${
+                    isDark ? 'bg-[#0B1832] border-[#1E3E6E]/60' : 'bg-white border-[#E1E9F3]'
+                  }`}
+                >
+                  {/* Paperclip / Attach menu trigger */}
                   <button
-                    onClick={() => setShowInfoPanel(!showInfoPanel)}
-                    title="View doctor professional summary"
-                    className={`hidden sm:flex p-2 rounded-xl transition-colors ${
-                      showInfoPanel
+                    type="button"
+                    onClick={() => setShowAttachMenu(!showAttachMenu)}
+                    title="Attach medical case review or Google Maps location"
+                    className={`p-2 rounded-xl transition-colors ${
+                      showAttachMenu
                         ? isDark
                           ? 'bg-[#3185FF] text-white'
                           : 'bg-[#12345B] text-white'
                         : isDark
-                        ? 'hover:bg-white/10 text-slate-300'
-                        : 'hover:bg-[#EAF3FF] text-[#12345B]'
+                        ? 'hover:bg-white/10 text-slate-400 hover:text-white'
+                        : 'hover:bg-[#F6F9FD] text-[#63738A] hover:text-[#12345B]'
                     }`}
                   >
-                    <Info className="w-4 h-4" />
+                    <Paperclip className="w-4 h-4" />
                   </button>
 
-                  {/* Report action */}
+                  {/* Quick Map Location Button in Composer */}
                   <button
-                    onClick={() => handleReportConversation(activeConv.participant.fullName)}
-                    title="Report conversation conduct"
-                    className={`p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors`}
+                    type="button"
+                    onClick={() => setIsMapPickerOpen(true)}
+                    title="Share hospital coordinates or live location circle"
+                    className="p-2 rounded-xl hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transition-colors"
                   >
-                    <Flag className="w-4 h-4" />
+                    <Compass className="w-4 h-4" />
                   </button>
-                </div>
-              </div>
 
-              {/* Call Notice Feedback Banner */}
-              {showCallNotice && (
-                <div className="px-4 py-2 bg-[#EAF3FF] dark:bg-[#0E2042] border-b border-[#3185FF]/20 text-[11px] text-[#12345B] dark:text-[#90CAF9] flex items-center justify-between">
-                  <span>
-                    Initiating <strong>{showCallNotice}</strong> with {activeConv.participant.fullName}...
-                  </span>
-                  <button
-                    onClick={() => setShowCallNotice(null)}
-                    className="p-1 hover:text-rose-500"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {/* Report Success Toast */}
-              {reportSuccess && (
-                <div className="px-4 py-2 bg-rose-950 border-b border-rose-800 text-rose-200 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-rose-400" />
-                  <span>Report submitted to AMT Healthcare Moderation Board for review.</span>
-                </div>
-              )}
-
-              {/* Strict PHI Safety Banner (Unobtrusive & Clear) */}
-              <div
-                className={`px-3 py-1.5 border-b text-[10px] text-center flex items-center justify-center gap-1.5 shrink-0 ${
-                  isDark
-                    ? 'bg-[#0B1A36] border-[#1E3E6E]/60 text-slate-300'
-                    : 'bg-[#EAF3FF]/80 border-[#246BCE]/20 text-[#12345B]'
-                }`}
-              >
-                <Lock className="w-3 h-3 text-[#3185FF] shrink-0" />
-                <span>
-                  <strong>Strict Patient PHI De-identification Standard:</strong> Do not share raw patient MRNs or identifiable health information in collegiate chat.
-                </span>
-              </div>
-
-              {/* Message History Body */}
-              <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 min-h-0">
-                {/* Date separator */}
-                <div className="flex items-center justify-center my-2">
-                  <span
-                    className={`px-3 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
+                  {/* Input Text Box */}
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    placeholder={`Message Dr. ${activeConv.participant.fullName.split(' ')[0]}...`}
+                    className={`flex-1 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none transition-colors ${
                       isDark
-                        ? 'bg-white/10 text-slate-400'
-                        : 'bg-[#E1E9F3] text-[#63738A]'
+                        ? 'bg-[#070F20] border border-[#1E3E6E] text-white placeholder-slate-500 focus:border-[#3185FF]'
+                        : 'bg-[#F6F9FD] border border-[#D5E1F0] text-[#142238] placeholder-slate-400 focus:border-[#246BCE]'
                     }`}
+                  />
+
+                  {/* Send Button */}
+                  <button
+                    type="submit"
+                    disabled={!messageText.trim() || sending}
+                    title="Send message"
+                    className="p-2.5 rounded-xl bg-gradient-to-r from-[#3185FF] to-[#246BCE] hover:from-[#42A5F5] hover:to-[#246BCE] text-white font-bold disabled:opacity-40 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
                   >
-                    Today, October 12, 2026
-                  </span>
-                </div>
-
-                {loadingMessages ? (
-                  <div className="py-12 text-center text-xs text-slate-400">
-                    <div className="w-6 h-6 border-2 border-[#3185FF]/30 border-t-[#3185FF] rounded-full animate-spin mx-auto mb-2" />
-                    Loading encrypted message history...
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="py-12 text-center space-y-2">
-                    <div className="w-12 h-12 rounded-full bg-[#3185FF]/10 text-[#3185FF] mx-auto flex items-center justify-center">
-                      <Sparkles className="w-6 h-6" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-400">Consultation Channel Open</p>
-                    <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                      Send a message to Dr. {activeConv.participant.fullName} to discuss clinical questions, mentorship, or peer case studies.
-                    </p>
-                  </div>
-                ) : (
-                  messages.map((msg, index) => {
-                    const isMe = msg.senderId === currentUser.id;
-                    const prevMsg = messages[index - 1];
-                    const isSameSender = prevMsg && prevMsg.senderId === msg.senderId;
-
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${
-                          isSameSender ? 'mt-1' : 'mt-3'
-                        }`}
-                      >
-                        {/* Message Bubble */}
-                        <div
-                          className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-2xs break-words ${
-                            isMe
-                              ? isDark
-                                ? 'bg-gradient-to-r from-[#1E56A0] to-[#246BCE] text-white rounded-tr-xs'
-                                : 'bg-gradient-to-r from-[#246BCE] to-[#1E88E5] text-white rounded-tr-xs'
-                              : isDark
-                              ? 'bg-[#102347] text-slate-100 border border-[#1E3E6E] rounded-tl-xs'
-                              : 'bg-white text-[#142238] border border-[#E1E9F3] rounded-tl-xs'
-                          }`}
-                        >
-                          <p className="whitespace-pre-line selection:bg-teal-500 selection:text-white">
-                            {msg.text}
-                          </p>
-
-                          {/* Case Attachment Metadata Preview Card */}
-                          {msg.attachmentMetadata && (
-                            <div
-                              className={`mt-2.5 p-2.5 rounded-xl border space-y-1 text-left ${
-                                isMe
-                                  ? 'bg-black/15 border-white/20 text-white'
-                                  : isDark
-                                  ? 'bg-[#070F20] border-[#1E3E6E] text-slate-200'
-                                  : 'bg-[#F6F9FD] border-[#D5E1F0] text-[#12345B]'
-                              }`}
-                            >
-                              <div className="flex items-center gap-1.5 font-bold text-[11px]">
-                                <FileText className="w-3.5 h-3.5 text-[#26D9C3] shrink-0" />
-                                <span className="truncate">{msg.attachmentMetadata.title}</span>
-                              </div>
-                              {msg.attachmentMetadata.summary && (
-                                <p className="text-[10px] opacity-90 leading-normal">
-                                  {msg.attachmentMetadata.summary}
-                                </p>
-                              )}
-                              <div className="pt-1 flex items-center justify-between text-[9px] font-semibold opacity-80 uppercase tracking-wider">
-                                <span>De-identified Patient Record</span>
-                                <span className="text-[#26D9C3]">Verified Case</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Timestamp and Delivery State */}
-                        <div className="flex items-center gap-1 text-[10px] text-slate-400 px-1 mt-0.5">
-                          <span>
-                            {new Date(msg.createdAt).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                          {isMe && (
-                            <span>
-                              {msg.status === 'read' ? (
-                                <span title="Read by doctor" className="inline-flex items-center">
-                                  <CheckCheck className="w-3 h-3 text-[#26D9C3]" />
-                                </span>
-                              ) : msg.status === 'delivered' ? (
-                                <span title="Delivered" className="inline-flex items-center">
-                                  <CheckCheck className="w-3 h-3 text-slate-400" />
-                                </span>
-                              ) : (
-                                <span title="Sent" className="inline-flex items-center">
-                                  <Check className="w-3 h-3 text-slate-400" />
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
               </div>
-
-              {/* Clinical Attachment Quick Menu */}
-              {showAttachMenu && (
-                <div
-                  className={`p-3 border-t grid grid-cols-3 gap-2 animate-fadeIn shrink-0 ${
-                    isDark ? 'bg-[#0D1C3B] border-[#1E3E6E]' : 'bg-[#EAF3FF] border-[#CAD8E8]'
-                  }`}
-                >
-                  <button
-                    onClick={() => handleAttachTemplate('case')}
-                    className="p-2 rounded-xl bg-white dark:bg-[#122345] border border-[#CAD8E8] dark:border-[#1E3E6E] text-left hover:scale-[1.02] transition-transform text-xs"
-                  >
-                    <FileText className="w-4 h-4 text-[#3185FF] mb-1" />
-                    <span className="font-bold text-[11px] block truncate">Echo / Case Summary</span>
-                    <span className="text-[9px] text-slate-500 block truncate">De-identified loop</span>
-                  </button>
-                  <button
-                    onClick={() => handleAttachTemplate('ecg')}
-                    className="p-2 rounded-xl bg-white dark:bg-[#122345] border border-[#CAD8E8] dark:border-[#1E3E6E] text-left hover:scale-[1.02] transition-transform text-xs"
-                  >
-                    <Activity className="w-4 h-4 text-[#26D9C3] mb-1" />
-                    <span className="font-bold text-[11px] block truncate">12-Lead ECG Analysis</span>
-                    <span className="text-[9px] text-slate-500 block truncate">De-identified strip</span>
-                  </button>
-                  <button
-                    onClick={() => handleAttachTemplate('guideline')}
-                    className="p-2 rounded-xl bg-white dark:bg-[#122345] border border-[#CAD8E8] dark:border-[#1E3E6E] text-left hover:scale-[1.02] transition-transform text-xs"
-                  >
-                    <BookOpen className="w-4 h-4 text-amber-500 mb-1" />
-                    <span className="font-bold text-[11px] block truncate">Clinical Guideline</span>
-                    <span className="text-[9px] text-slate-500 block truncate">Evidence consensus</span>
-                  </button>
+            ) : (
+              /* No conversation selected state (Desktop) */
+              <div className="hidden md:flex flex-1 flex-col items-center justify-center p-8 text-center bg-[#F8FAFD] dark:bg-[#070F20]">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#1B4B82] via-[#3185FF] to-[#26D9C3] text-white flex items-center justify-center shadow-lg mb-4">
+                  <MessageSquare className="w-8 h-8 stroke-[2.2]" />
                 </div>
-              )}
+                <h3 className="text-base font-bold text-[#12345B] dark:text-white">
+                  Select a Doctor Consultation
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
+                  Choose a conversation from the sidebar to review peer case studies, residency mentorship, or clinical inquiries.
+                </p>
+                <button
+                  onClick={() => setIsMapPickerOpen(true)}
+                  className="mt-4 px-4 py-2 rounded-xl bg-[#16845B] hover:bg-[#126b49] text-white font-bold text-xs flex items-center gap-2 shadow-md"
+                >
+                  <Compass className="w-4 h-4" />
+                  <span>Explore Doctor Knowledge Map & Live Circles</span>
+                </button>
+              </div>
+            )}
 
-              {/* Message Composer */}
-              <form
-                onSubmit={(e) => handleSendMessage(e)}
-                className={`p-2.5 sm:p-3 border-t flex items-center gap-2 shrink-0 ${
-                  isDark ? 'bg-[#0B1832] border-[#1E3E6E]/60' : 'bg-white border-[#E1E9F3]'
+            {/* =======================================================================
+                PANEL 3: COLLAPSIBLE PARTICIPANT INFORMATION PANEL (Desktop/Tablet)
+                ======================================================================= */}
+            {activeConv && showInfoPanel && (
+              <div
+                className={`w-72 lg:w-80 shrink-0 border-l p-4 overflow-y-auto hidden sm:flex flex-col justify-between transition-colors animate-fadeIn ${
+                  isDark ? 'bg-[#081226] border-[#1E3E6E]/60' : 'bg-white border-[#E1E9F3]'
                 }`}
               >
-                {/* Paperclip / Attach menu trigger */}
-                <button
-                  type="button"
-                  onClick={() => setShowAttachMenu(!showAttachMenu)}
-                  title="Attach de-identified clinical case review"
-                  className={`p-2 rounded-xl transition-colors ${
-                    showAttachMenu
-                      ? isDark
-                        ? 'bg-[#3185FF] text-white'
-                        : 'bg-[#12345B] text-white'
-                      : isDark
-                      ? 'hover:bg-white/10 text-slate-400 hover:text-white'
-                      : 'hover:bg-[#F6F9FD] text-[#63738A] hover:text-[#12345B]'
-                  }`}
-                >
-                  <Paperclip className="w-4 h-4" />
-                </button>
-
-                {/* Input Text Box */}
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  placeholder={`Message Dr. ${activeConv.participant.fullName.split(' ')[0]}...`}
-                  className={`flex-1 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none transition-colors ${
-                    isDark
-                      ? 'bg-[#070F20] border border-[#1E3E6E] text-white placeholder-slate-500 focus:border-[#3185FF]'
-                      : 'bg-[#F6F9FD] border border-[#D5E1F0] text-[#142238] placeholder-slate-400 focus:border-[#246BCE]'
-                  }`}
-                />
-
-                {/* Send Button */}
-                <button
-                  type="submit"
-                  disabled={!messageText.trim() || sending}
-                  title="Send message"
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-[#3185FF] to-[#246BCE] hover:from-[#42A5F5] hover:to-[#246BCE] text-white font-bold disabled:opacity-40 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </div>
-          ) : (
-            /* No conversation selected state (Desktop) */
-            <div className="hidden md:flex flex-1 flex-col items-center justify-center p-8 text-center bg-[#F8FAFD] dark:bg-[#070F20]">
-              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#1B4B82] via-[#3185FF] to-[#26D9C3] text-white flex items-center justify-center shadow-lg mb-4">
-                <MessageSquare className="w-8 h-8 stroke-[2.2]" />
-              </div>
-              <h3 className="text-base font-bold text-[#12345B] dark:text-white">
-                Select a Doctor Consultation
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
-                Choose a conversation from the sidebar to review peer case studies, residency mentorship, or clinical inquiries.
-              </p>
-            </div>
-          )}
-
-          {/* =======================================================================
-              PANEL 3: COLLAPSIBLE PARTICIPANT INFORMATION PANEL (Desktop/Tablet)
-              ======================================================================= */}
-          {activeConv && showInfoPanel && (
-            <div
-              className={`w-72 lg:w-80 shrink-0 border-l p-4 overflow-y-auto hidden sm:flex flex-col justify-between transition-colors animate-fadeIn ${
-                isDark ? 'bg-[#081226] border-[#1E3E6E]/60' : 'bg-white border-[#E1E9F3]'
-              }`}
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Doctor Summary
-                  </span>
-                  <button
-                    onClick={() => setShowInfoPanel(false)}
-                    className="p-1 text-slate-400 hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Profile Card */}
-                <div className="text-center p-4 rounded-2xl bg-white/5 border border-inherit space-y-2">
-                  <img
-                    src={activeConv.participant.avatarUrl}
-                    alt={activeConv.participant.fullName}
-                    className="w-16 h-16 rounded-full object-cover mx-auto ring-2 ring-[#3185FF]"
-                  />
-                  <div>
-                    <h4 className="text-sm font-bold text-[#12345B] dark:text-white">
-                      {activeConv.participant.fullName}
-                    </h4>
-                    <p className="text-xs text-[#3185FF] dark:text-[#64B5F6] font-semibold">
-                      {activeConv.participant.specialty}
-                    </p>
-                  </div>
-                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#16845B]/15 text-[#16845B] text-[10px] font-bold">
-                    <ShieldCheck className="w-3 h-3" />
-                    <span>COUNCIL VERIFIED PRACTITIONER</span>
-                  </div>
-                </div>
-
-                {/* Clinical Channel Details */}
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between py-1.5 border-b border-inherit">
-                    <span className="text-slate-400">Interaction</span>
-                    <span className="font-semibold capitalize">{activeConv.type}</span>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-inherit">
-                    <span className="text-slate-400">Department</span>
-                    <span className="font-semibold truncate max-w-[140px]">
-                      {activeConv.communityName || 'Specialty Exchange'}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      Doctor Summary
                     </span>
+                    <button
+                      onClick={() => setShowInfoPanel(false)}
+                      className="p-1 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-inherit">
-                    <span className="text-slate-400">Security</span>
-                    <span className="font-semibold text-emerald-500">De-identified</span>
+
+                  {/* Profile Card */}
+                  <div className="text-center p-4 rounded-2xl bg-white/5 border border-inherit space-y-2">
+                    <img
+                      src={activeConv.participant.avatarUrl}
+                      alt={activeConv.participant.fullName}
+                      className="w-16 h-16 rounded-full object-cover mx-auto ring-2 ring-[#3185FF]"
+                    />
+                    <div>
+                      <h4 className="text-sm font-bold text-[#12345B] dark:text-white">
+                        {activeConv.participant.fullName}
+                      </h4>
+                      <p className="text-xs text-[#3185FF] dark:text-[#64B5F6] font-semibold">
+                        {activeConv.participant.specialty}
+                      </p>
+                    </div>
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#16845B]/15 text-[#16845B] text-[10px] font-bold">
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>COUNCIL VERIFIED PRACTITIONER</span>
+                    </div>
+                  </div>
+
+                  {/* Actions: Video / Audio / Map */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => startCall('audio')}
+                      className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>Voice Call</span>
+                    </button>
+                    <button
+                      onClick={() => startCall('video')}
+                      className="py-2 px-3 rounded-xl bg-[#3185FF] hover:bg-[#246BCE] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <Video className="w-3.5 h-3.5" />
+                      <span>Video Call</span>
+                    </button>
+                  </div>
+
+                  {/* Google Maps Location Button */}
+                  <button
+                    onClick={() => setIsMapPickerOpen(true)}
+                    className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-emerald-400 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-1.5"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>View Hospital on Google Maps</span>
+                  </button>
+
+                  {/* Clinical Channel Details */}
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between py-1.5 border-b border-inherit">
+                      <span className="text-slate-400">Interaction</span>
+                      <span className="font-semibold capitalize">{activeConv.type}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-inherit">
+                      <span className="text-slate-400">Department</span>
+                      <span className="font-semibold truncate max-w-[140px]">
+                        {activeConv.communityName || 'Specialty Exchange'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-inherit">
+                      <span className="text-slate-400">Security</span>
+                      <span className="font-semibold text-emerald-500">De-identified</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-2 pt-2">
+                    <button
+                      onClick={() => {
+                        onOpenDoctorProfile(activeConv.participant.id);
+                        onClose();
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-[#3185FF] hover:bg-[#246BCE] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>View Full Doctor Profile</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleReportConversation(activeConv.participant.fullName)}
+                      className="w-full py-2 px-3 rounded-xl border border-rose-500/40 text-rose-400 hover:bg-rose-500/10 font-bold text-xs flex items-center justify-center gap-1.5"
+                    >
+                      <Flag className="w-3.5 h-3.5" />
+                      <span>Report Practitioner Conduct</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="space-y-2 pt-2">
-                  <button
-                    onClick={() => {
-                      onOpenDoctorProfile(activeConv.participant.id);
-                      onClose();
-                    }}
-                    className="w-full py-2 px-3 rounded-xl bg-[#3185FF] hover:bg-[#246BCE] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    <User className="w-3.5 h-3.5" />
-                    <span>View Full Doctor Profile</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleReportConversation(activeConv.participant.fullName)}
-                    className="w-full py-2 px-3 rounded-xl border border-rose-500/40 text-rose-400 hover:bg-rose-500/10 font-bold text-xs flex items-center justify-center gap-1.5"
-                  >
-                    <Flag className="w-3.5 h-3.5" />
-                    <span>Report Practitioner Conduct</span>
-                  </button>
+                {/* Bottom Security Standard */}
+                <div className="pt-4 border-t border-inherit text-[10px] text-slate-500">
+                  <p>
+                    Communications are protected under the AMT Doctor Knowledge Network Professional Code of Conduct.
+                  </p>
                 </div>
               </div>
-
-              {/* Bottom Security Standard */}
-              <div className="pt-4 border-t border-inherit text-[10px] text-slate-500">
-                <p>
-                  Communications are protected under the AMT Doctor Knowledge Network Professional Code of Conduct.
-                </p>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

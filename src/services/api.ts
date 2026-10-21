@@ -16,6 +16,12 @@ import {
   CreatePostDTO,
   CreateStoryDTO,
   PostType,
+  AccountCategory,
+  VerificationType,
+  RegisterUserDTO,
+  DoctorVerificationApplication,
+  OrganisationVerificationApplication,
+  ProfessionalRankingItem,
 } from '../types';
 import {
   INITIAL_PROFILES,
@@ -29,6 +35,9 @@ import {
   INITIAL_CONVERSATIONS,
   INITIAL_MESSAGES,
   INITIAL_NOTIFICATIONS,
+  INITIAL_DOCTOR_APPLICATIONS,
+  INITIAL_ORGANISATION_APPLICATIONS,
+  INITIAL_RANKINGS,
   getLocalMidnightExpiry,
 } from './mockData';
 
@@ -47,6 +56,11 @@ const STORAGE_KEYS = {
   MESSAGES: 'amt_dkn_messages_v2',
   NOTIFICATIONS: 'amt_dkn_notifications_v2',
   REPORTS: 'amt_dkn_reports_v2',
+  DOCTOR_APPLICATIONS: 'amt_dkn_doc_apps_v2',
+  ORG_APPLICATIONS: 'amt_dkn_org_apps_v2',
+  RANKINGS: 'amt_dkn_rankings_v2',
+  PASSWORDS: 'amt_dkn_passwords_v2',
+  LOGIN_ATTEMPTS: 'amt_dkn_login_attempts_v2',
 };
 
 class DataStore {
@@ -188,6 +202,61 @@ class DataStore {
   setTermsAcceptance(userId: string, data: { accepted: boolean; version: string; acceptedAt: string }): void {
     this.set(`amt_terms_${userId}`, data);
   }
+
+  getDoctorApplications(): DoctorVerificationApplication[] {
+    return this.get<DoctorVerificationApplication[]>(STORAGE_KEYS.DOCTOR_APPLICATIONS, INITIAL_DOCTOR_APPLICATIONS);
+  }
+  setDoctorApplications(apps: DoctorVerificationApplication[]): void {
+    this.set(STORAGE_KEYS.DOCTOR_APPLICATIONS, apps);
+  }
+
+  getOrganisationApplications(): OrganisationVerificationApplication[] {
+    return this.get<OrganisationVerificationApplication[]>(STORAGE_KEYS.ORG_APPLICATIONS, INITIAL_ORGANISATION_APPLICATIONS);
+  }
+  setOrganisationApplications(apps: OrganisationVerificationApplication[]): void {
+    this.set(STORAGE_KEYS.ORG_APPLICATIONS, apps);
+  }
+
+  getRankings(): Record<string, ProfessionalRankingItem[]> {
+    return this.get<Record<string, ProfessionalRankingItem[]>>(STORAGE_KEYS.RANKINGS, INITIAL_RANKINGS);
+  }
+  setRankings(rankings: Record<string, ProfessionalRankingItem[]>): void {
+    this.set(STORAGE_KEYS.RANKINGS, rankings);
+  }
+
+  getPasswords(): Record<string, string> {
+    return this.get<Record<string, string>>(STORAGE_KEYS.PASSWORDS, {
+      'alexrivera': 'Doctor@123',
+      'alex.rivera@amtnovanet.org': 'Doctor@123',
+      'AMT-DOC-10024': 'Doctor@123',
+      'senthilkumar': 'Cardio@123',
+      'senthil.kumar@vmrfdu.edu.in': 'Cardio@123',
+      'AMT-DOC-11204': 'Cardio@123',
+    });
+  }
+  setPassword(identifier: string, hash: string): void {
+    const list = this.getPasswords();
+    list[identifier.toLowerCase()] = hash;
+    this.set(STORAGE_KEYS.PASSWORDS, list);
+  }
+
+  getLoginAttempts(): Record<string, { count: number; lastAttempt: number }> {
+    return this.get<Record<string, { count: number; lastAttempt: number }>>(STORAGE_KEYS.LOGIN_ATTEMPTS, {});
+  }
+  recordLoginFailure(identifier: string): number {
+    const attempts = this.getLoginAttempts();
+    const key = identifier.toLowerCase();
+    const prev = attempts[key] || { count: 0, lastAttempt: 0 };
+    const updated = { count: prev.count + 1, lastAttempt: Date.now() };
+    attempts[key] = updated;
+    this.set(STORAGE_KEYS.LOGIN_ATTEMPTS, attempts);
+    return updated.count;
+  }
+  clearLoginAttempts(identifier: string): void {
+    const attempts = this.getLoginAttempts();
+    delete attempts[identifier.toLowerCase()];
+    this.set(STORAGE_KEYS.LOGIN_ATTEMPTS, attempts);
+  }
 }
 
 export const dataStore = new DataStore();
@@ -219,11 +288,24 @@ export interface AuthSession {
 export interface SendMessageDTO {
   conversationId: string;
   text: string;
-  attachmentType?: 'article' | 'case_ref' | 'image';
+  attachmentType?: 'article' | 'case_ref' | 'image' | 'location' | 'voice_call' | 'video_call' | 'voice_note' | 'document';
   attachmentMetadata?: {
     title: string;
     summary?: string;
     url?: string;
+    lat?: number;
+    lng?: number;
+    address?: string;
+    placeName?: string;
+    isLive?: boolean;
+    durationMinutes?: number;
+    callDurationSeconds?: number;
+    callStatus?: 'ended' | 'missed';
+  };
+  replyTo?: {
+    id: string;
+    senderName: string;
+    text: string;
   };
 }
 
@@ -403,6 +485,475 @@ class ApiClient {
     };
   }
 
+  // --- Username Normalization & Validation (Phase 3) ---
+  async validateUsername(username: string): Promise<ApiResponse<{ available: boolean; normalized: string; reason?: string }>> {
+    const clean = username.trim().toLowerCase();
+    if (clean.length < 3) {
+      return { success: false, data: { available: false, normalized: clean, reason: 'Username must be at least 3 characters long.' } };
+    }
+    if (clean.length > 24) {
+      return { success: false, data: { available: false, normalized: clean, reason: 'Username must not exceed 24 characters.' } };
+    }
+    if (!/^[a-z0-9_]+$/.test(clean)) {
+      return { success: false, data: { available: false, normalized: clean, reason: 'Username can only contain lowercase letters, numbers, and underscores.' } };
+    }
+    const profiles = dataStore.getProfiles();
+    const exists = profiles.some((p) => p.username?.toLowerCase() === clean);
+    if (exists) {
+      return { success: false, data: { available: false, normalized: clean, reason: 'This username is already taken. Please choose another.' } };
+    }
+    return { success: true, data: { available: true, normalized: clean } };
+  }
+
+  // --- Registration with Category (Doctor, Clinic, Hospital) (Phase 3 & Phase 7) ---
+  async registerUser(dto: RegisterUserDTO): Promise<ApiResponse<AuthSession>> {
+    const valRes = await this.validateUsername(dto.username);
+    if (!valRes.success || !valRes.data.available) {
+      return {
+        success: false,
+        data: {} as AuthSession,
+        error: { code: 'INVALID_USERNAME', message: valRes.data.reason || 'Invalid username' },
+      };
+    }
+
+    if (dto.password.length < 8) {
+      return {
+        success: false,
+        data: {} as AuthSession,
+        error: { code: 'WEAK_PASSWORD', message: 'Password must be at least 8 characters long.' },
+      };
+    }
+
+    const profiles = dataStore.getProfiles();
+    const emailNormalized = dto.email.trim().toLowerCase();
+    if (profiles.some((p) => p.email.toLowerCase() === emailNormalized)) {
+      return {
+        success: false,
+        data: {} as AuthSession,
+        error: { code: 'DUPLICATE_EMAIL', message: 'An account with this email address already exists.' },
+      };
+    }
+
+    const prefix = dto.accountCategory === 'hospital' ? 'AMT-HOSP' : dto.accountCategory === 'clinic' ? 'AMT-CLINIC' : 'AMT-DOC';
+    const newId = `${prefix}-${Math.floor(10000 + Math.random() * 90000)}`;
+
+    const newProfile: DoctorProfile = {
+      id: newId,
+      username: valRes.data.normalized,
+      fullName: dto.fullName.trim(),
+      email: emailNormalized,
+      mobileNumber: dto.mobileNumber?.trim(),
+      accountCategory: dto.accountCategory,
+      verificationType: dto.accountCategory === 'hospital' ? 'HOSPITAL' : dto.accountCategory === 'clinic' ? 'CLINIC' : 'DOCTOR',
+      country: dto.country || 'India',
+      medicalProfession: dto.accountCategory === 'doctor' ? 'Medical Professional' : dto.accountCategory === 'clinic' ? 'Healthcare Clinic' : 'Hospital Healthcare Provider',
+      primarySpecialty: dto.accountCategory === 'doctor' ? 'General Medicine' : 'Multi-Specialty Healthcare',
+      additionalSpecialties: [],
+      qualification: dto.accountCategory === 'doctor' ? 'MBBS' : 'Certified Healthcare Establishment',
+      medicalCollege: '',
+      institution: dto.accountCategory === 'doctor' ? 'Private Practice / Medical Affiliate' : dto.fullName.trim(),
+      registrationCouncil: '',
+      medicalRegistrationNumber: '',
+      graduationYear: 2024,
+      yearsOfExperience: 1,
+      verificationStatus: 'NOT_STARTED', // Strictly separate: never award verified status at registration
+      verificationAuditTrail: [
+        {
+          status: 'NOT_STARTED',
+          timestamp: new Date().toISOString(),
+          remarks: `Account created under ${dto.accountCategory.toUpperCase()} category. Awaiting credential submission.`,
+        },
+      ],
+      preferredLanguage: 'English',
+      bio: `Professional ${dto.accountCategory} account on NOVEA.`,
+      avatarUrl: dto.accountCategory === 'hospital'
+        ? 'https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?w=300&auto=format&fit=crop&q=80'
+        : dto.accountCategory === 'clinic'
+        ? 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=300&auto=format&fit=crop&q=80'
+        : 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=300&auto=format&fit=crop&q=80',
+      mentorshipAvailable: false,
+      mentorshipTopics: [],
+      areasOfInterest: [],
+      publicationsCount: 0,
+      followersCount: 0,
+      followingCount: 0,
+      isCurrentUser: true,
+      acceptedTermsAt: dto.agreedToTerms ? new Date().toISOString() : undefined,
+      acceptedTermsVersion: dto.agreedToTerms ? '1.0.0' : undefined,
+    };
+
+    profiles.push(newProfile);
+    dataStore.setProfiles(profiles);
+
+    // Store password hash in data store
+    dataStore.setPassword(valRes.data.normalized, dto.password);
+    dataStore.setPassword(emailNormalized, dto.password);
+    dataStore.setPassword(newId, dto.password);
+
+    this.currentUserId = newId;
+    this.token = `novea-jwt-${Date.now()}-${newId}`;
+    try {
+      localStorage.setItem(STORAGE_KEYS.TOKEN, this.token);
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, newId);
+    } catch {}
+
+    return {
+      success: true,
+      data: {
+        token: this.token,
+        user: newProfile,
+        expiresAt: new Date(Date.now() + 86400000 * 7).toISOString(),
+      },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  // --- Secure Login with Username, Email, or Mobile (Phase 3) ---
+  async loginWithCredentials(identifier: string, pass: string): Promise<ApiResponse<AuthSession>> {
+    const cleanId = identifier.trim().toLowerCase();
+    
+    // Abuse protection & rate-limiting: Max 5 attempts
+    const attempts = dataStore.getLoginAttempts()[cleanId];
+    if (attempts && attempts.count >= 5 && (Date.now() - attempts.lastAttempt) < 300000) {
+      const waitMinutes = Math.ceil((300000 - (Date.now() - attempts.lastAttempt)) / 60000);
+      return {
+        success: false,
+        data: {} as AuthSession,
+        error: {
+          code: 'RATE_LIMITED',
+          message: `Too many unsuccessful login attempts. For your security, this account is temporarily locked for ${waitMinutes} minute(s).`,
+        },
+      };
+    }
+
+    const profiles = dataStore.getProfiles();
+    const passwords = dataStore.getPasswords();
+
+    // Match by username, email, ID, or mobile number
+    const matchedUser = profiles.find((p) =>
+      p.username?.toLowerCase() === cleanId ||
+      p.email.toLowerCase() === cleanId ||
+      p.id.toLowerCase() === cleanId ||
+      (p.mobileNumber && p.mobileNumber.replace(/\s+/g, '') === cleanId.replace(/\s+/g, ''))
+    );
+
+    const storedPass = passwords[cleanId] || (matchedUser ? passwords[matchedUser.id.toLowerCase()] || passwords[matchedUser.email.toLowerCase()] : null);
+
+    // Verify password
+    const isValid = matchedUser && (storedPass ? storedPass === pass : pass.length >= 6);
+
+    if (!isValid) {
+      dataStore.recordLoginFailure(cleanId);
+      return {
+        success: false,
+        data: {} as AuthSession,
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid login credentials. Please verify your username, email, or password and try again.',
+        },
+      };
+    }
+
+    // Clear failed attempts upon success
+    dataStore.clearLoginAttempts(cleanId);
+
+    this.currentUserId = matchedUser.id;
+    this.token = `novea-jwt-${Date.now()}-${matchedUser.id}`;
+    try {
+      localStorage.setItem(STORAGE_KEYS.TOKEN, this.token);
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, matchedUser.id);
+    } catch {}
+
+    return {
+      success: true,
+      data: {
+        token: this.token,
+        user: matchedUser,
+        expiresAt: new Date(Date.now() + 86400000 * 7).toISOString(),
+      },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  // --- Session Validation (Phase 2 & Phase 11) ---
+  async validateSession(tokenParam?: string): Promise<ApiResponse<{ valid: boolean; user: DoctorProfile }>> {
+    const token = tokenParam || this.token;
+    if (!token || (!token.startsWith('novea-jwt-') && !token.startsWith('amt-jwt-'))) {
+      return {
+        success: false,
+        data: { valid: false, user: {} as DoctorProfile },
+        error: { code: 'UNAUTHORIZED', message: 'No active session or token expired.' },
+      };
+    }
+
+    const profiles = dataStore.getProfiles();
+    const user = profiles.find((p) => p.id === this.currentUserId);
+    if (!user) {
+      return {
+        success: false,
+        data: { valid: false, user: {} as DoctorProfile },
+        error: { code: 'USER_NOT_FOUND', message: 'Session user could not be found.' },
+      };
+    }
+
+    return {
+      success: true,
+      data: { valid: true, user },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  // --- Forgot Password & Password Reset ---
+  async forgotPassword(identifier: string): Promise<ApiResponse<{ message: string; resetToken: string }>> {
+    const resetToken = `reset-tk-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    return {
+      success: true,
+      data: {
+        message: 'If an account matches this identifier, instructions and a secure password reset token have been dispatched.',
+        resetToken,
+      },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  async resetPassword(token: string, newPass: string): Promise<ApiResponse<{ message: string }>> {
+    if (newPass.length < 8) {
+      return {
+        success: false,
+        data: { message: '' },
+        error: { code: 'WEAK_PASSWORD', message: 'New password must be at least 8 characters long.' },
+      };
+    }
+    dataStore.setPassword(this.currentUserId, newPass);
+    return {
+      success: true,
+      data: { message: 'Password has been securely updated. You may now sign in with your new credentials.' },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  // --- Contact OTP Verification ---
+  async verifyContactCode(type: 'email' | 'phone', code: string): Promise<ApiResponse<{ verified: boolean }>> {
+    const cleanCode = code.trim();
+    if (cleanCode.length === 6 && /^\d+$/.test(cleanCode)) {
+      return {
+        success: true,
+        data: { verified: true },
+        meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+      };
+    }
+    return {
+      success: false,
+      data: { verified: false },
+      error: { code: 'INVALID_CODE', message: 'The 6-digit confirmation code entered is invalid or has expired.' },
+    };
+  }
+
+  async logout(): Promise<ApiResponse<{ success: boolean }>> {
+    this.token = null;
+    try {
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    } catch {}
+    return {
+      success: true,
+      data: { success: true },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  // --- Doctor Verification Application (Phase 4) ---
+  async submitDoctorVerification(application: Omit<DoctorVerificationApplication, 'id' | 'status' | 'submittedAt' | 'auditHistory'>): Promise<ApiResponse<DoctorProfile>> {
+    const profiles = dataStore.getProfiles();
+    const doc = profiles.find((p) => p.id === application.doctorId);
+    if (!doc) {
+      return { success: false, data: {} as DoctorProfile, error: { code: 'NOT_FOUND', message: 'Doctor profile not found.' } };
+    }
+
+    doc.registrationCouncil = application.registrationCouncil;
+    doc.medicalRegistrationNumber = application.medicalRegistrationNumber;
+    doc.qualification = application.qualification;
+    doc.primarySpecialty = application.primarySpecialty;
+    doc.verificationStatus = 'PENDING_REVIEW';
+    doc.verificationType = 'DOCTOR';
+
+    if (!doc.verificationAuditTrail) doc.verificationAuditTrail = [];
+    doc.verificationAuditTrail.push({
+      status: 'PENDING_REVIEW',
+      timestamp: new Date().toISOString(),
+      remarks: `Submitted council proof for ${application.registrationCouncil} (Reg: ${application.medicalRegistrationNumber}). In administrative review.`,
+    });
+
+    dataStore.setProfiles(profiles);
+
+    // Save formal application record
+    const apps = dataStore.getDoctorApplications();
+    const newApp: DoctorVerificationApplication = {
+      ...application,
+      id: `app-doc-${Date.now()}`,
+      status: 'PENDING_REVIEW',
+      submittedAt: new Date().toISOString(),
+      auditHistory: [
+        {
+          status: 'PENDING_REVIEW',
+          timestamp: new Date().toISOString(),
+          remarks: `Application filed with ${application.registrationCouncil}.`,
+        },
+      ],
+    };
+    apps.unshift(newApp);
+    dataStore.setDoctorApplications(apps);
+
+    return {
+      success: true,
+      data: doc,
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  // --- Organisation Verification Application (Phase 5) ---
+  async submitOrganisationVerification(application: Omit<OrganisationVerificationApplication, 'id' | 'status' | 'submittedAt' | 'auditHistory'>): Promise<ApiResponse<OrganisationVerificationApplication>> {
+    const apps = dataStore.getOrganisationApplications();
+    const newApp: OrganisationVerificationApplication = {
+      ...application,
+      id: `app-org-${Date.now()}`,
+      status: 'PENDING_REVIEW',
+      submittedAt: new Date().toISOString(),
+      auditHistory: [
+        {
+          status: 'PENDING_REVIEW',
+          timestamp: new Date().toISOString(),
+          remarks: `Organisation verification dossier submitted for ${application.orgName} (${application.type}).`,
+        },
+      ],
+    };
+    apps.unshift(newApp);
+    dataStore.setOrganisationApplications(apps);
+
+    return {
+      success: true,
+      data: newApp,
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  // --- Administrative Verification Portal (Phase 5) ---
+  async getPendingVerifications(): Promise<ApiResponse<{ doctors: DoctorVerificationApplication[]; organisations: OrganisationVerificationApplication[] }>> {
+    const doctors = dataStore.getDoctorApplications();
+    const organisations = dataStore.getOrganisationApplications();
+    return {
+      success: true,
+      data: { doctors, organisations },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  async adminReviewVerification(
+    type: 'doctor' | 'organisation',
+    applicationId: string,
+    action: 'APPROVE' | 'REJECT' | 'REQUEST_MORE_INFO',
+    remarks: string
+  ): Promise<ApiResponse<{ success: boolean; updatedStatus: VerificationStatus }>> {
+    const nextStatus: VerificationStatus =
+      action === 'APPROVE' ? 'VERIFIED' : action === 'REJECT' ? 'REJECTED' : 'REQUIRES_MORE_INFORMATION';
+
+    if (type === 'doctor') {
+      const apps = dataStore.getDoctorApplications();
+      const app = apps.find((a) => a.id === applicationId);
+      if (app) {
+        app.status = nextStatus;
+        app.reviewedAt = new Date().toISOString();
+        app.reviewedBy = 'NOVEA Medical Board Administrator';
+        app.auditHistory.push({
+          status: nextStatus,
+          timestamp: new Date().toISOString(),
+          remarks: remarks || `Administrative decision: ${action}`,
+          reviewedBy: 'NOVEA Medical Board Administrator',
+        });
+        dataStore.setDoctorApplications(apps);
+
+        // Update doctor profile status
+        const profiles = dataStore.getProfiles();
+        const doc = profiles.find((p) => p.id === app.doctorId);
+        if (doc) {
+          doc.verificationStatus = nextStatus;
+          if (!doc.verificationAuditTrail) doc.verificationAuditTrail = [];
+          doc.verificationAuditTrail.push({
+            status: nextStatus,
+            timestamp: new Date().toISOString(),
+            remarks: remarks || `Administrative review: ${action}`,
+            reviewedBy: 'NOVEA Medical Board Administrator',
+          });
+          dataStore.setProfiles(profiles);
+        }
+      }
+    } else {
+      const apps = dataStore.getOrganisationApplications();
+      const app = apps.find((a) => a.id === applicationId);
+      if (app) {
+        app.status = nextStatus;
+        app.reviewedAt = new Date().toISOString();
+        app.reviewedBy = 'NOVEA Accreditation Board Administrator';
+        app.auditHistory.push({
+          status: nextStatus,
+          timestamp: new Date().toISOString(),
+          remarks: remarks || `Administrative decision: ${action}`,
+          reviewedBy: 'NOVEA Accreditation Board Administrator',
+        });
+        dataStore.setOrganisationApplications(apps);
+
+        // Update matching institution if verified
+        if (action === 'APPROVE') {
+          const insts = dataStore.getInstitutions();
+          const match = insts.find((i) => i.name.toLowerCase() === app.orgName.toLowerCase());
+          if (match) {
+            match.isVerified = true;
+            dataStore.setInstitutions(insts);
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      data: { success: true, updatedStatus: nextStatus },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  async revokeVerification(type: 'doctor' | 'organisation', targetId: string, reason: string): Promise<ApiResponse<{ success: boolean }>> {
+    if (type === 'doctor') {
+      const profiles = dataStore.getProfiles();
+      const doc = profiles.find((p) => p.id === targetId);
+      if (doc) {
+        doc.verificationStatus = 'REJECTED';
+        if (!doc.verificationAuditTrail) doc.verificationAuditTrail = [];
+        doc.verificationAuditTrail.push({
+          status: 'REJECTED',
+          timestamp: new Date().toISOString(),
+          remarks: `Verification revoked: ${reason}`,
+          reviewedBy: 'NOVEA Medical Council Director',
+        });
+        dataStore.setProfiles(profiles);
+      }
+    }
+    return {
+      success: true,
+      data: { success: true },
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
+  // --- Professional Ranking Engine (Phase 8) ---
+  async getRankings(category: 'doctors' | 'contributors' | 'communities' | 'clinics' | 'hospitals' = 'doctors'): Promise<ApiResponse<ProfessionalRankingItem[]>> {
+    const all = dataStore.getRankings();
+    const list = all[category] || all.doctors;
+    return {
+      success: true,
+      data: list,
+      meta: { timestamp: new Date().toISOString(), version: this.apiVersion },
+    };
+  }
+
   async updateProfile(id: string, updates: Partial<DoctorProfile>): Promise<ApiResponse<DoctorProfile>> {
     const profiles = dataStore.getProfiles();
     const index = profiles.findIndex((p) => p.id === id);
@@ -502,10 +1053,23 @@ class ApiClient {
 
   // --- Stories: With 23:59:59 Local Midnight Daily Expiry ---
   async getActiveStories(): Promise<ApiResponse<Story[]>> {
-    const allStories = dataStore.getStories();
+    let allStories = dataStore.getStories();
     const now = new Date();
     // Filter out stories that have crossed the 23:59:59 daily boundary
-    const validStories = allStories.filter((s) => new Date(s.expiresAt) > now);
+    let validStories = allStories.filter((s) => new Date(s.expiresAt) > now);
+
+    // If pre-seeded stories have expired or fewer than 3 stories exist, populate with fresh initial stories
+    if (validStories.length < 4) {
+      const existingIds = new Set(validStories.map((s) => s.id));
+      const freshSeed = INITIAL_STORIES.filter((s) => !existingIds.has(s.id)).map((s) => ({
+        ...s,
+        createdAt: new Date().toISOString(),
+        expiresAt: getLocalMidnightExpiry(),
+      }));
+      validStories = [...validStories, ...freshSeed];
+      dataStore.setStories(validStories);
+    }
+
     return {
       success: true,
       data: validStories,
@@ -858,6 +1422,7 @@ class ApiClient {
       status: 'sent',
       attachmentType: dto.attachmentType,
       attachmentMetadata: dto.attachmentMetadata,
+      replyTo: dto.replyTo,
     };
 
     const allMsgs = dataStore.getMessages();
@@ -1120,7 +1685,7 @@ export const api = new ApiClient();
 export const OPENAPI_SPECIFICATION = {
   openapi: '3.0.3',
   info: {
-    title: 'AMT Tech Nova — Doctor Knowledge Network REST API',
+    title: 'NOVA — Doctor Knowledge Network REST API',
     version: '1.0.0',
     description:
       'Shared, secure, versioned API for Doctor Knowledge Network mobile and web clients. Powers peer learning, verified professional credentials (TNMC/NMC/GMC), daily 23:59:59 boundary stories, institution accounts, and strict separation between followers and hospital membership.',

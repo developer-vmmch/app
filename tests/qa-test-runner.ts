@@ -7,6 +7,7 @@ import { api } from '../src/services/api';
 import { JETPACK_COMPOSE_ARCHITECTURE } from '../src/docs/androidArchitecture';
 import { DELIVERABLES_DATA } from '../src/docs/deliverables';
 import { VerificationStatus, PostType, MentorshipStatus } from '../src/types';
+import { INITIAL_MAP_LOCATIONS, REGIONAL_CENTERS } from '../src/services/mapsData';
 
 interface TestResult {
   name: string;
@@ -411,6 +412,60 @@ async function runCompleteQASuite() {
 
     const convsRes = await api.getConversations();
     assert(convsRes.success, 'Conversations must load for direct messaging');
+  });
+
+  // MODULE 17: GOOGLE MAPS PLATFORM INTEGRATION & TELEMEDICINE CONTRACTS
+  console.log('\n--- 17. Google Maps Platform & Telemedicine Calling Contracts ---');
+  await runTest('Google Maps', 'Verify medical centers, regional campuses, and coordinates integrity', () => {
+    assert(REGIONAL_CENTERS.length >= 4, 'Must provide regional medical hubs (Salem, Chennai, Bangalore, Singapore)');
+    assert(INITIAL_MAP_LOCATIONS.length >= 7, 'Must provide hospital and doctor pins');
+    const vmmc = INITIAL_MAP_LOCATIONS.find((l) => l.name.includes('Vinayaka'));
+    assert(!!vmmc, 'Must include Vinayaka Missions Medical College as primary medical hub');
+    assert(vmmc.lat > 0 && vmmc.lng > 0, 'VMMC coordinates must be valid');
+    assert(INITIAL_MAP_LOCATIONS.some((l) => l.isEmergencyAvailable), 'Must include emergency consult facilities');
+  });
+
+  await runTest('Location Sharing', 'Verify location message payload in chat with coordinates and live circle metadata', async () => {
+    const convs = await api.getConversations();
+    const convId = convs.data[0].id;
+    const locMsgRes = await api.sendMessage({
+      conversationId: convId,
+      text: '📍 Live Location Circle Shared (60 mins)',
+      attachmentType: 'location',
+      attachmentMetadata: {
+        title: "Vinayaka Mission's Medical College Hospital",
+        address: 'Sankari Main Road, Ariyanoor, Salem',
+        lat: 11.6643,
+        lng: 78.1460,
+        isLive: true,
+        durationMinutes: 60,
+      },
+    });
+
+    assert(locMsgRes.success, 'Sending location message must succeed');
+    assert(locMsgRes.data.attachmentType === 'location', 'Attachment type must be location');
+    assert(locMsgRes.data.attachmentMetadata?.isLive === true, 'isLive must be true');
+    assert(locMsgRes.data.attachmentMetadata?.lat === 11.6643, 'Coordinates must persist');
+  });
+
+  await runTest('Telemedicine Calling', 'Verify voice and video consultation call log message contracts', async () => {
+    const convs = await api.getConversations();
+    const convId = convs.data[0].id;
+    const callMsgRes = await api.sendMessage({
+      conversationId: convId,
+      text: 'Voice call ended (3m 24s)',
+      attachmentType: 'voice_call',
+      attachmentMetadata: {
+        title: '📞 Encrypted Voice Consultation',
+        summary: 'Consultation Duration: 3m 24s • Secure Peer-to-Peer',
+        callDurationSeconds: 204,
+        callStatus: 'ended',
+      },
+    });
+
+    assert(callMsgRes.success, 'Recording call message must succeed');
+    assert(callMsgRes.data.attachmentType === 'voice_call', 'Attachment type must be voice_call');
+    assert(callMsgRes.data.attachmentMetadata?.callDurationSeconds === 204, 'Call duration must match');
   });
 
   // FINAL SUMMARY

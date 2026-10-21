@@ -1,0 +1,883 @@
+# NOVA — Complete Master Prompt for Professional Medical Social Networking Platform
+
+## 1. Your Role
+
+Act as a **Senior Product Designer, UI/UX Architect, Full-Stack Developer, Android Developer, Database Architect, QA Engineer, and Technical Lead**.
+
+Your task is to transform the existing **NOVA medical professional networking application** into a polished, modern, fully functional social platform for doctors, postgraduate medical students, junior doctors, senior specialists, mentors, and medical educators.
+
+Do not create just a static UI prototype. Inspect the existing project, understand its architecture, reuse working components, implement real functionality, test the application, and verify that every important interaction works.
+
+**Primary product name: NOVA**
+
+Remove the old product name “AMT Tech Nova” from the visible application and use “NOVA” consistently.
+
+## 2. First: Inspect the Existing Project
+
+Before changing code:
+
+1. Inspect the entire project structure.
+2. Identify the frontend framework, backend framework, database, authentication system, API structure, and Android packaging approach.
+3. Review package files, routes, components, layouts, stylesheets, configuration files, database models, migrations, and existing tests.
+4. Run the existing application and inspect the actual rendered interface.
+5. Identify existing functional features, broken components, missing styles, incorrect layouts, console errors, API failures, and unfinished buttons.
+6. Check the existing responsive design and determine why the current UI may look like a narrow mobile panel or have excessive empty space on desktop.
+7. Preserve existing working functionality, existing data, authentication, and API contracts wherever possible.
+8. Prepare a short implementation plan based on the actual codebase.
+
+Do not replace the entire project or change frameworks simply because another approach is easier. Make targeted improvements that fit the existing architecture.
+
+If a backend or feature is missing, implement it using the existing project's conventions.
+
+## 3. Product Vision
+
+NOVA is a professional medical social network built around **doctor-to-doctor knowledge sharing, mentorship, clinical learning, collaboration, and professional development**.
+
+The platform should combine useful interaction patterns from professional networking services, social media, and messaging applications without copying their branding or exact designs.
+
+Study relevant public product documentation and established UX patterns from:
+
+- Instagram: stories, social feeds, media posts, profiles, and direct messaging.
+- LinkedIn: professional profiles, career information, articles, activity, and professional connections.
+- WhatsApp: simple status sharing and private communication.
+- Medical education platforms: structured learning, specialist knowledge sharing, and educational communities.
+
+Use these as research references, not as templates to copy. NOVA must have its own identity and a consistent medical-professional experience.
+
+### Core principle
+
+**AI supports doctors; it does not replace medical expertise or clinical judgment.**
+
+Human mentorship, professional discussion, privacy, and responsible medical education must remain central to the product.
+
+## 4. Design System and Visual Identity
+
+Create a consistent, premium, modern visual design.
+
+### Brand
+
+- Product name: NOVA.
+- Use a clean NOVA wordmark in the application header.
+- Center the NOVA brand horizontally in the desktop and mobile headers.
+- Keep the brand visually balanced against the profile button and other header controls.
+- Use a professional healthcare technology identity.
+- Avoid excessive gradients, oversized logos, unnecessary decorative elements, and crowded interfaces.
+
+### Suggested design direction
+
+- Primary color: professional medical blue.
+- Supporting colors: white, soft neutral gray, subtle blue-gray, and restrained teal accents.
+- Page background: light neutral gray or a carefully selected off-white.
+- Cards: clean white surfaces with subtle borders and restrained shadows.
+- Typography: readable, modern sans-serif.
+- Icons: consistent icon library, with a consistent stroke and size.
+- Spacing: use a consistent spacing scale.
+- Corners: moderate, consistent rounding.
+- Buttons: clear hierarchy between primary, secondary, and destructive actions.
+
+Dark mode may be retained or added if supported by the existing architecture.
+
+Use centralized design tokens or CSS variables for colors, typography, spacing, border radii, shadows, and layout widths.
+
+Do not scatter arbitrary CSS values across components.
+
+### Critical layout requirements
+
+The application must not render as a tiny, narrow column on a wide desktop screen unless the user explicitly selects a mobile preview.
+
+- Desktop: use a responsive multi-column social layout.
+- Tablet: use a flexible two-column or simplified layout.
+- Mobile: use a genuine mobile-first layout.
+- Ensure cards, images, navigation, and profile sections have correct widths.
+- Prevent horizontal overflow, clipped text, overlapping controls, and giant media elements.
+- Use appropriate maximum content widths rather than fixed narrow widths.
+- Maintain consistent alignment across all pages.
+
+## 5. Application Header
+
+Redesign the shared header across the application.
+
+### Required desktop header
+
+Left section:
+- Profile avatar at the top-left.
+- Clicking the avatar opens the user's profile or a small account menu.
+- Do not place the profile picture in the top-right position.
+
+Center section:
+- NOVA wordmark, horizontally centered in the viewport.
+
+Right section:
+- Search.
+- Notifications with unread count when applicable.
+- Messages.
+- Settings or account actions where appropriate.
+
+Keep the header responsive and ensure the centered NOVA logo remains centered even when the left and right controls have different widths.
+
+### Mobile header
+
+- Profile avatar on the top-left.
+- NOVA wordmark centered.
+- Notifications, messages, or a compact menu on the right.
+- Use touch-friendly controls and avoid crowding.
+
+The header should remain visually consistent across the home feed, profile, stories, search, notifications, and messaging screens.
+
+## 6. Main Social Networking Layout
+
+Create a complete social networking interface.
+
+### Desktop structure
+
+Use three responsive areas when screen width permits.
+
+**Left sidebar**
+- User profile summary.
+- Home.
+- Explore.
+- My Network.
+- Mentorship.
+- Communities or Medical Circles.
+- Saved Posts.
+- Articles.
+- Notifications.
+- Settings.
+
+**Center feed**
+- Stories.
+- Post composer.
+- Feed filters.
+- Social posts.
+- Articles.
+- Clinical learning discussions.
+- Polls.
+- Recommended professional content where relevant.
+
+**Right sidebar**
+- Suggested medical professionals.
+- Available mentors.
+- Recommended medical communities.
+- Upcoming educational events.
+- Relevant professional updates.
+
+The sidebars must collapse or disappear intelligently on smaller screens. Do not squeeze the central feed into an unreadable width.
+
+### Mobile structure
+
+Use a mobile-first feed and a compact bottom navigation bar where appropriate.
+
+Suggested destinations:
+- Home.
+- Explore.
+- Create.
+- Mentorship or Network.
+- Profile.
+
+Additional features should be accessible through navigation or a menu without overcrowding the screen.
+
+## 7. Daily Stories System
+
+Implement a polished, fully functional stories feature.
+
+### Stories interface
+
+Display a horizontally scrollable row of circular profile images near the top of the home feed.
+
+Include:
+- Add Story.
+- The current user's story.
+- Stories from followed or connected professionals.
+- An unread indicator.
+- A viewed indicator.
+- Clear visual distinction between viewed and unviewed stories.
+
+Use circular profile images, subtle borders, consistent sizing, and clear labels.
+
+Remove the oversized “DOCTOR STORIES” banners, unnecessary expiry countdown banners, and excessive story-card decoration if they exist in the current design.
+
+The story row should feel natural and compact, not like a separate oversized dashboard.
+
+### Publishing a story
+
+When the user clicks Add Story, open a polished story composer.
+
+Support the media types that the existing backend and product requirements can safely support:
+- Image.
+- Video.
+- Text-based status.
+- Optional educational or professional caption.
+
+Provide:
+- Media preview.
+- Caption input.
+- Audience/privacy selection.
+- Cancel.
+- Publish Story.
+- Upload progress.
+- Success and error feedback.
+
+Validate file type and size. Display meaningful errors when uploads fail.
+
+### Story lifecycle
+
+- Stories should be publishable every day.
+- Each published story should expire 24 hours after publication.
+- Expired stories must not appear as active stories.
+- The backend must enforce expiry; hiding expired stories only in the frontend is insufficient.
+- Record publication time and expiry time.
+- Update unread/viewed states appropriately.
+- Allow authorized users to delete their own stories.
+- Allow users to view their own active stories.
+- Provide a story viewer with next/previous navigation, progress indicators, pause/resume behavior where supported, and a close button.
+- Make the viewer usable on desktop and mobile.
+- Provide appropriate keyboard and accessibility support.
+
+Do not display a constantly visible expiry countdown on the home feed. Show expiry information inside the story viewer or story management interface when useful.
+
+Do not automatically delete permanent posts when stories expire.
+
+### Story privacy
+
+Only show stories to audiences permitted by the user's privacy settings and relationship rules.
+
+Do not expose private stories or private profile data through public API endpoints.
+
+## 8. Social Feed and Post Composer
+
+Build a professional, interactive feed that combines social interaction with medical learning.
+
+### Post composer
+
+At the top of the feed, show the user's avatar and a clear prompt such as “Share a clinical learning, professional update, or idea.”
+
+Provide appropriate creation options:
+- Text post.
+- Image or video post.
+- Article or long-form educational post.
+- Poll.
+- Clinical learning discussion.
+- Educational resource, if supported.
+- Question for the medical community.
+
+Keep the composer compact when collapsed. Expand it when the user begins creating content.
+
+Include:
+- Text editor.
+- Media upload and preview.
+- Appropriate visibility controls.
+- Publish button.
+- Validation.
+- Loading state.
+- Success and failure feedback.
+
+A published post must appear in the feed and the author's profile, subject to visibility permissions.
+
+### Feed categories
+
+Provide useful feed filters, such as:
+- For You.
+- Following.
+- Clinical Learning.
+- Articles.
+- Discussions.
+- Polls.
+
+Use a compact tab bar or segmented control. Avoid excessively long filter labels or overflowing navigation.
+
+Ensure filters actually change the displayed content. Do not build decorative tabs that do nothing.
+
+### Post card
+
+Each post should include:
+- Author avatar.
+- Author name.
+- Professional title or verified specialty, if available.
+- Publication time.
+- Follow or connection action where appropriate.
+- Post text.
+- Media with correct aspect ratio.
+- Relevant topic tags.
+- Like or reaction action.
+- Comment action.
+- Share action.
+- Save/bookmark action.
+- More-options menu.
+
+Use clean spacing and a consistent hierarchy.
+
+Do not make every post excessively tall. Use sensible text truncation and a “See more” action for long posts.
+
+### Post interactions
+
+Implement real functionality for:
+- Creating posts.
+- Editing one's own posts.
+- Deleting one's own posts.
+- Reacting to posts.
+- Adding comments.
+- Replying to comments where supported.
+- Editing or deleting one's own comments.
+- Saving and unsaving posts.
+- Sharing or copying a permitted post link.
+- Following or connecting with other professionals.
+- Reporting inappropriate content.
+
+Display updated counts and states after successful actions.
+
+Use backend persistence for interactions. Do not rely exclusively on local frontend state.
+
+Prevent duplicate submissions and show meaningful errors.
+
+## 9. User Profiles
+
+Create professional profiles that feel familiar to social network users while being tailored to medical professionals.
+
+### Profile header
+
+Display:
+- Cover image, if supported.
+- Profile picture.
+- Full name.
+- Professional designation.
+- Specialty or department.
+- Institution or organization, where appropriate.
+- Location, subject to user privacy settings.
+- Short biography.
+- Professional interests.
+- Connection or follower count, where appropriate.
+- Follow or Connect button.
+- Message button, subject to permissions.
+- Edit Profile button for the profile owner.
+- More options for reporting or blocking.
+
+Do not invent verification badges, medical qualifications, specialties, or credentials. Only display information backed by profile data and the verification process.
+
+### Profile navigation tabs
+
+Implement a clean, responsive profile navigation area with these sections where applicable:
+
+1. Posts
+2. Articles
+3. Media
+4. Tagged
+5. About
+6. Activity
+
+Use labels appropriate to NOVA's actual supported features. If “Reels” or another video format is not implemented, do not show a non-functional tab.
+
+Each tab must load the correct content or profile information.
+
+### Posts
+
+Display the user's posts in a clean list or responsive grid, depending on the content type.
+
+### Articles
+
+Display authored educational articles and long-form posts.
+
+### Media
+
+Display images and videos published by the user.
+
+### Tagged
+
+Display posts that mention or tag the user, subject to privacy and tagging permissions.
+
+### About
+
+Display professional information such as:
+- Biography.
+- Specialty.
+- Qualifications entered by the user.
+- Institution.
+- Experience.
+- Professional interests.
+- Languages.
+- Relevant profile links.
+
+### Activity
+
+Display appropriate recent public activity, such as posts and professional contributions. Respect privacy settings.
+
+### Edit Profile
+
+Create a working edit-profile screen or modal.
+
+Allow the user to update supported fields, including:
+- Profile picture.
+- Cover image.
+- Display name, subject to account rules.
+- Professional title.
+- Specialty.
+- Institution.
+- Biography.
+- Location, if voluntarily provided.
+- Professional interests.
+- Other supported profile fields.
+
+Requirements:
+- Pre-fill existing data.
+- Validate fields.
+- Preview image changes.
+- Save changes to the backend.
+- Show loading, success, and error states.
+- Update the visible profile immediately after a successful save.
+- Handle upload failures gracefully.
+- Provide Cancel and Save Changes controls.
+- Protect sensitive account fields from unauthorized changes.
+
+Do not build a fake edit-profile form that only changes local display values.
+
+## 10. Search and Discovery
+
+Implement useful discovery for medical professionals and educational content.
+
+Search should support relevant entities, depending on available backend functionality:
+- People.
+- Medical specialties.
+- Topics.
+- Posts.
+- Articles.
+- Communities.
+- Mentors.
+
+Provide:
+- Search input.
+- Suggestions where supported.
+- Clear search.
+- Empty state.
+- Loading state.
+- No-results state.
+- Relevant result cards.
+- Pagination or incremental loading.
+
+Ensure results respect user privacy and visibility settings.
+
+Do not expose email addresses, private contact information, or private account details through search.
+
+## 11. Mentorship and Doctor-to-Doctor Learning
+
+Mentorship is a core differentiator of NOVA.
+
+Support bidirectional knowledge sharing between experienced doctors, senior specialists, postgraduate students, and junior doctors.
+
+### Mentorship discovery
+
+Allow users to discover potential mentors based on available, user-provided professional information:
+- Specialty.
+- Professional interests.
+- Topics.
+- Experience, when provided.
+- Availability, when provided.
+- Mentorship goals.
+
+Do not assume that senior doctors only teach or that junior doctors only receive knowledge. Allow any eligible professional to share knowledge and learn.
+
+### Mentorship profiles
+
+Display:
+- Mentor or learner introduction.
+- Areas of interest.
+- Preferred discussion topics.
+- Availability, if provided.
+- Request mentorship or start discussion action.
+
+### Mentorship requests
+
+Support:
+- Sending a request.
+- Accepting or declining a request.
+- Viewing pending requests.
+- Viewing accepted mentorship connections.
+- Cancelling an outstanding request.
+- Appropriate notifications.
+
+Use backend authorization and clear request states.
+
+### Educational communities
+
+Where supported, allow users to create or join professional circles for specialties, clinical learning, research discussions, examination preparation, or educational events.
+
+Implement permissions and moderation appropriate to each community.
+
+## 12. Messaging and Notifications
+
+Retain existing messaging features and integrate them into the new design.
+
+### Messaging
+
+Where supported by the existing architecture, provide:
+- Conversation list.
+- Search conversations.
+- Unread indicators.
+- Message history.
+- Text messaging.
+- Media attachments.
+- Message timestamps.
+- Loading and empty states.
+- Appropriate error handling.
+
+Implement real-time updates only if the existing backend supports them or a reliable implementation is added.
+
+Do not show fake online status, delivery receipts, or read receipts unless those states are genuinely tracked.
+
+Respect messaging permissions, blocking, and privacy settings.
+
+### Notifications
+
+Provide notifications for relevant events, such as:
+- New connection or follow.
+- Mentorship requests.
+- Reactions and comments.
+- Replies and mentions.
+- New messages.
+- Relevant educational community activity.
+
+Support:
+- Read and unread states.
+- Mark as read.
+- Navigate to the relevant item.
+- Empty state.
+- Loading and error handling.
+
+Do not generate duplicate notifications for a single event.
+
+## 13. AI-Assisted Features
+
+If the existing NOVA project includes AI functionality, preserve and improve it without allowing AI to replace human medical expertise.
+
+Potential features include:
+- Summarizing educational posts.
+- Organizing topics and tags.
+- Helping users draft professional posts.
+- Finding relevant educational discussions.
+- Supporting knowledge discovery.
+- Helping structure questions for mentors.
+
+AI-generated medical information must be clearly identified where appropriate, and important clinical claims must not be presented as guaranteed or independently verified.
+
+Do not present AI output as a diagnosis, treatment decision, or substitute for a qualified clinician's judgment.
+
+Do not send private messages, sensitive personal data, or confidential clinical information to external AI services without appropriate authorization, safeguards, and disclosure.
+
+Do not fabricate AI capabilities if no AI backend is configured. Hide unavailable features or implement them properly.
+
+## 14. Medical Privacy, Safety, and Professional Conduct
+
+NOVA is a medical-professional platform. Apply privacy and safety controls throughout the product.
+
+Requirements:
+- Do not expose patient-identifiable information in public content by default.
+- Provide a warning or educational reminder when users compose potentially sensitive clinical content.
+- Encourage appropriate de-identification of clinical examples.
+- Provide reporting and moderation mechanisms.
+- Support blocking and restricted interactions where appropriate.
+- Respect private profiles, private posts, and audience restrictions.
+- Protect uploaded files and API endpoints.
+- Validate inputs on both client and server.
+- Enforce authorization on the backend.
+- Avoid exposing internal errors, stack traces, access tokens, or sensitive server details to end users.
+- Do not invent professional credentials or imply that a user has been verified when they have not.
+
+Remove redundant development warnings, placeholder alerts, debugging labels, and unnecessary warning banners from the normal interface.
+
+However, do not remove genuine privacy, security, consent, or safety notices. Display them at the point where they are relevant, with concise wording.
+
+## 15. Functional Requirements
+
+Every visible interactive element must have a defined and working action.
+
+Audit:
+- Header controls.
+- Navigation links.
+- Story creation and viewing.
+- Post creation and interactions.
+- Profile tabs.
+- Edit Profile.
+- Search.
+- Follow and Connect.
+- Mentorship.
+- Messaging.
+- Notifications.
+- Settings.
+- Uploads.
+- Modals and menus.
+- Pagination or infinite scrolling.
+- Error and empty states.
+
+For every action:
+1. Validate input.
+2. Show a loading state.
+3. Perform the actual operation.
+4. Update the interface after success.
+5. Show a useful error after failure.
+6. Prevent accidental duplicate submissions.
+7. Enforce backend permissions.
+
+Do not use placeholder links, empty event handlers, fake success messages, or buttons that have no effect.
+
+If a feature cannot be completed because a required service or credential is unavailable, document the dependency and provide a clear disabled state rather than pretending it works.
+
+## 16. Backend and Database Requirements
+
+Use the project's existing backend and database.
+
+Inspect the current data models before introducing new tables or fields.
+
+Where necessary, implement or extend data models for:
+- User profiles.
+- Stories and story views.
+- Posts.
+- Post media.
+- Reactions.
+- Comments and replies.
+- Saved posts.
+- Follows or connections.
+- Mentorship requests.
+- Notifications.
+- Conversations and messages.
+- Tags and topic associations.
+- Reports and moderation actions.
+
+These are conceptual requirements, not instructions to create duplicate tables if equivalent models already exist.
+
+Requirements:
+- Correct ownership and relationships.
+- Appropriate database indexes.
+- Server-side validation.
+- Pagination.
+- Authorization.
+- Safe media upload and storage.
+- Database migrations.
+- Appropriate error handling.
+- Protection against duplicate records where necessary.
+- Consistent API response formats.
+
+For stories, ensure server-side expiry rules are enforced. Use background cleanup only where appropriate; filtering expired stories from queries must work even if a cleanup task has not run.
+
+Never delete existing production or development data merely to simplify a migration.
+
+Do not expose secrets or credentials in source code.
+
+## 17. Responsive Design and Accessibility
+
+Test the interface at representative viewport sizes:
+
+- Small mobile: approximately 320–375 px wide.
+- Standard mobile: approximately 390–430 px wide.
+- Tablet: approximately 768–1024 px wide.
+- Desktop: approximately 1280–1440 px wide.
+- Wide desktop: approximately 1920 px wide.
+
+Requirements:
+- No unintended horizontal scrolling.
+- No clipped labels or controls.
+- No overlapping header elements.
+- No excessively narrow desktop feed.
+- Correct image and video sizing.
+- Touch-friendly mobile targets.
+- Keyboard-accessible controls.
+- Visible focus indicators.
+- Semantic labels for form fields.
+- Accessible contrast.
+- Meaningful alternative text for informative images.
+
+Use responsive CSS rather than maintaining separate duplicated interfaces unless the architecture genuinely requires it.
+
+## 18. Android Application
+
+The product should support both the web application and Android.
+
+First inspect the current mobile setup and determine whether the project already uses a native Android application, React Native, Capacitor, a PWA, or another approach.
+
+Reuse the current approach where reasonable.
+
+If Android packaging already exists:
+- Preserve the current configuration.
+- Ensure the application launches correctly.
+- Test responsive screens and navigation.
+- Verify login, profile, feed, stories, and other supported features.
+- Check permissions and media uploads.
+- Confirm API base URLs are suitable for the target environment.
+- Do not use localhost URLs that only work on the development computer in a release build.
+
+If Android packaging does not exist, evaluate the simplest maintainable approach compatible with the current web stack, such as a suitable Capacitor-based Android wrapper or an existing native architecture.
+
+Provide an APK build process and generate a debug APK if the environment supports Android builds. Do not claim that an APK was generated unless the file was successfully built and verified.
+
+Keep the web application functional independently of Android packaging.
+
+## 19. Performance and Reliability
+
+Improve performance without sacrificing correctness.
+
+Where appropriate:
+- Use lazy loading for feed images.
+- Optimize uploaded media.
+- Use pagination or incremental loading.
+- Avoid unnecessary API calls.
+- Prevent duplicate requests.
+- Keep component state predictable.
+- Avoid memory leaks.
+- Handle network interruptions.
+- Provide skeletons or loading indicators.
+- Provide helpful empty states.
+- Avoid rendering the entire feed repeatedly after small interactions.
+
+Use the project's established libraries and patterns unless there is a clear reason to change them.
+
+## 20. Required Implementation Phases
+
+Work in the following order. Finish and verify each phase before moving to the next.
+
+### Phase 1 — Audit and Stabilization
+- Inspect the current application.
+- Run frontend and backend.
+- Identify existing functionality and regressions.
+- Fix critical rendering, routing, and console errors.
+- Confirm the application's actual architecture.
+
+### Phase 2 — Design System and Shared Layout
+- Establish NOVA branding.
+- Center the NOVA header.
+- Move the profile avatar to the top-left.
+- Implement responsive navigation.
+- Fix desktop and mobile layout widths.
+- Standardize spacing, typography, buttons, cards, and icons.
+
+### Phase 3 — Home Feed and Stories
+- Redesign the story row.
+- Implement daily story publishing and 24-hour expiry.
+- Implement the story viewer.
+- Redesign the post composer.
+- Improve feed cards and feed filters.
+- Connect interactions to actual APIs.
+
+### Phase 4 — Profile and Editing
+- Implement profile header.
+- Implement Posts, Articles, Media, Tagged, About, and Activity tabs where supported.
+- Implement Edit Profile.
+- Verify persistence and authorization.
+
+### Phase 5 — Discovery and Mentorship
+- Improve professional search.
+- Implement relevant people and content discovery.
+- Improve mentor discovery and mentorship requests.
+- Verify privacy rules.
+
+### Phase 6 — Messaging and Notifications
+- Improve conversation and notification interfaces.
+- Verify unread states, navigation, and permissions.
+- Preserve working real-time features.
+
+### Phase 7 — Security and Reliability
+- Review authentication and authorization.
+- Validate uploads and user inputs.
+- Check private-content access.
+- Review errors and logging.
+- Verify migrations and database behavior.
+
+### Phase 8 — Android and Final Validation
+- Build and test Android packaging if supported.
+- Run the web application at representative viewport sizes.
+- Execute tests.
+- Fix regressions.
+- Prepare a final implementation report.
+
+Do not redesign every screen simultaneously without validating the shared layout first. Changes to the global layout must not break existing routes or modules.
+
+## 21. Testing Requirements
+
+Perform real verification.
+
+### Frontend
+- Run the available lint and type-check commands.
+- Run production build.
+- Check browser console errors.
+- Verify routes and navigation.
+- Test forms and modals.
+- Test story publishing and viewing.
+- Test feed filters and post actions.
+- Test profile editing.
+- Test responsive layouts.
+
+### Backend
+- Run the existing test suite.
+- Verify API validation.
+- Verify authorization and permissions.
+- Test story expiry.
+- Test post and profile persistence.
+- Test error responses.
+- Test relevant migrations.
+
+### End-to-end
+Test at least these workflows:
+
+1. User logs in and opens the home feed.
+2. User creates a story and views it.
+3. Another authorized user sees the story.
+4. An expired story is excluded from active stories.
+5. User creates a post.
+6. User reacts to and comments on a post.
+7. User saves and unsaves a post.
+8. User opens another professional's profile.
+9. User edits their own profile and sees the saved changes.
+10. User searches for a medical professional.
+11. User sends and responds to a mentorship request.
+12. User opens notifications and navigates to the relevant content.
+13. User opens messaging if messaging is supported.
+14. Unauthorized users cannot edit another user's profile or delete their content.
+15. Private content is not visible to unauthorized users.
+
+Adapt the workflow list to features that exist in the actual project, but do not silently claim unsupported functionality has passed.
+
+## 22. Final Acceptance Criteria
+
+The work is complete only when:
+
+- The visible product name is NOVA.
+- NOVA is centered in the header.
+- The profile avatar is at the top-left.
+- The interface feels like a polished professional social networking platform.
+- Desktop uses screen space effectively.
+- Mobile layout remains usable and responsive.
+- Daily stories can be published and expire after 24 hours.
+- Stories, posts, and profile tabs work as implemented.
+- Edit Profile persists data to the backend.
+- Functional buttons perform real actions.
+- Unnecessary debug messages and redundant warning banners are removed.
+- Genuine medical privacy and security protections remain.
+- Existing working features are preserved.
+- Backend authorization is enforced.
+- Database migrations are safe.
+- No major frontend build or runtime errors remain.
+- Tests and build results are documented accurately.
+- Android packaging is verified if it is part of the current project.
+
+## 23. Required Final Report
+
+When implementation is finished, provide a concise report containing:
+
+1. What was inspected.
+2. What was changed.
+3. Files and major components modified.
+4. Features implemented.
+5. Backend and database changes.
+6. Tests executed and their actual results.
+7. Build status.
+8. Android APK status, if applicable.
+9. Any remaining bugs or blockers.
+10. Any external credentials, services, or configuration still required.
+
+Clearly separate completed work from incomplete work.
+
+Do not state that tests passed unless they were executed. Do not state that features work unless they were verified.
+
+## Final Instruction
+
+Start by inspecting the existing NOVA codebase and running the application. Then implement the redesign in controlled phases, validate each phase, and continue until the acceptance criteria are met or a genuine blocker prevents further progress.
+
+**Priority order: correctness → existing functionality → responsive UI → professional visual quality → performance → optional enhancements.**
+
+Do not stop after producing a plan, a screenshot, or a static prototype. Make the actual code changes, run the available tests and builds, fix issues discovered during verification, and report the exact outcome.

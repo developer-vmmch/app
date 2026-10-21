@@ -13,18 +13,36 @@
   }
 }
 
-/* Custom scrollbar for mobile clean aesthetic */
+/* Completely hide all scrollbars / scroller thumbs (invisible rover/scroller) while maintaining smooth scroll */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar,
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+
+::-webkit-scrollbar-track,
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 9999px;
+  display: none !important;
+  background: transparent !important;
+  border: none !important;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }

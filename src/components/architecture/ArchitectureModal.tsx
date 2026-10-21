@@ -340,7 +340,7 @@ export const ArchitectureModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] uppercase font-bold text-teal-400 tracking-wider">
-                  AMT Tech Nova Architecture & Deliverables
+                  NOVA Architecture & Deliverables
                 </span>
                 <span className="text-slate-600">·</span>
                 <span className="text-[10px] text-slate-400">Section 1, 16–21 Specifications</span>

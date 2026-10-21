@@ -26,6 +26,7 @@ interface Props {
   onOpenInstitutionDetail: (instId: string) => void;
   onRequestMentorship: (doctor: DoctorProfile) => void;
   onSelectCommunity?: (specialty: string) => void;
+  onOpenMap?: () => void;
 }
 
 const SPECIALTIES = [
@@ -44,6 +45,7 @@ export const DiscoverScreen: React.FC<Props> = ({
   onOpenInstitutionDetail,
   onRequestMentorship,
   onSelectCommunity,
+  onOpenMap,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -154,9 +156,9 @@ export const DiscoverScreen: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#F6F9FD]">
+    <div className="flex-1 flex flex-col min-h-0 space-y-4">
       {/* Top Search Bar & Header */}
-      <div className="p-3 sm:p-4 bg-white border-b border-[#E1E9F3] space-y-3 shrink-0 shadow-2xs">
+      <div className="p-4 bg-white rounded-2xl border border-[#E2E8F0] space-y-3.5 shadow-xs">
         {/* Search Input with Clear Button */}
         <div className="relative">
           <Search className="w-4 h-4 text-[#63738A] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -194,6 +196,32 @@ export const DiscoverScreen: React.FC<Props> = ({
                 {rec}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Google Maps Live Medical Network Banner */}
+        {onOpenMap && (
+          <div className="p-3 rounded-2xl bg-gradient-to-r from-[#0F2746] to-[#0A1A33] border border-[#16845B]/50 text-white flex items-center justify-between gap-3 shadow-md">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-[#16845B]/25 border border-[#16845B] flex items-center justify-center text-[#22C55E] shrink-0">
+                <Compass className="w-5 h-5 animate-spin-slow" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold text-white">Google Maps Medical Circles</h4>
+                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold">LIVE RADAR</span>
+                </div>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  Explore verified hospital emergency trauma centers & on-call doctors in Salem & regional hubs.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onOpenMap}
+              className="px-3 py-1.5 rounded-xl bg-[#16845B] hover:bg-[#126b49] text-white text-xs font-bold shadow-sm whitespace-nowrap active:scale-95 transition-transform"
+            >
+              Open Map
+            </button>
           </div>
         )}
 
@@ -261,7 +289,7 @@ export const DiscoverScreen: React.FC<Props> = ({
       </div>
 
       {/* Directory & Search Results Feed */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3.5 min-h-0">
+      <div className="space-y-3.5">
         {/* Loading State */}
         {loading && (
           <div className="py-16 text-center space-y-2">

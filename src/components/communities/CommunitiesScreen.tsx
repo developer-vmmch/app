@@ -46,18 +46,18 @@ export const CommunitiesScreen: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#F6F9FD]">
+    <div className="flex-1 flex flex-col min-h-0 space-y-4">
       {/* Header */}
-      <div className="p-3.5 bg-white border-b border-[#E1E9F3] space-y-1 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#EAF3FF] text-[#246BCE] flex items-center justify-center">
-            <Users className="w-4 h-4" />
+      <div className="p-4 bg-white rounded-2xl border border-[#E2E8F0] shadow-xs space-y-1 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#EFF6FF] text-[#1D4ED8] flex items-center justify-center border border-[#BFDBFE]">
+            <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-[#12345B]">
+            <h2 className="text-sm sm:text-base font-bold text-[#0F172A]">
               Hospital & Specialty Communities
             </h2>
-            <p className="text-[11px] text-[#63738A]">
+            <p className="text-xs text-[#64748B]">
               Collegiate departmental circles governed by medical peer rules
             </p>
           </div>
@@ -65,16 +65,18 @@ export const CommunitiesScreen: React.FC<Props> = ({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto p-3.5 space-y-3 min-h-0">
+      <div className="space-y-3.5">
         {loading ? (
-          <div className="py-12 text-center text-xs text-[#63738A]">Loading communities...</div>
+          <div className="py-12 text-center text-xs text-[#64748B] bg-white rounded-2xl border border-[#E2E8F0] p-8">
+            Loading communities...
+          </div>
         ) : (
           communities.map((comm) => {
             const isExpanded = expandedId === comm.id;
             return (
               <div
                 key={comm.id}
-                className="bg-white border border-[#E1E9F3] rounded-xl p-3.5 space-y-3 shadow-2xs hover:border-[#246BCE]/40 transition-colors"
+                className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3.5 shadow-xs hover:border-[#1D4ED8]/40 transition-all"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>

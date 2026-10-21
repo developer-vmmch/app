@@ -61,19 +61,19 @@ export const MentorshipScreen: React.FC<Props> = ({
   );
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-slate-950">
+    <div className="flex-1 flex flex-col min-h-0 space-y-4">
       {/* Header & Tabs */}
-      <div className="p-3 bg-slate-900 border-b border-slate-800 space-y-2.5 shrink-0">
+      <div className="p-4 bg-white rounded-2xl border border-[#E2E8F0] shadow-xs space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-teal-950 text-teal-400 border border-teal-800/60">
-              <Award className="w-4 h-4" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#EFF6FF] text-[#1D4ED8] flex items-center justify-center border border-[#BFDBFE]">
+              <Award className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xs sm:text-sm font-bold text-slate-100">
+              <h2 className="text-sm sm:text-base font-bold text-[#0F172A]">
                 Doctor Mentorship Portal
               </h2>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-xs text-[#64748B]">
                 Professional guidance & structured clinical learning plans
               </p>
             </div>
@@ -81,33 +81,33 @@ export const MentorshipScreen: React.FC<Props> = ({
         </div>
 
         {/* Segmented Filter */}
-        <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800 text-xs">
+        <div className="flex items-center gap-1 p-1 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] text-xs">
           <button
             onClick={() => setActiveTab('active')}
-            className={`flex-1 py-1 text-center font-medium rounded-md transition-colors ${
+            className={`flex-1 py-1.5 text-center font-bold rounded-lg transition-all ${
               activeTab === 'active'
-                ? 'bg-slate-800 text-teal-300 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#1D4ED8] text-white shadow-xs'
+                : 'text-[#64748B] hover:text-[#0F172A]'
             }`}
           >
             Active ({activeRelationships.length})
           </button>
           <button
             onClick={() => setActiveTab('incoming')}
-            className={`flex-1 py-1 text-center font-medium rounded-md transition-colors relative ${
+            className={`flex-1 py-1.5 text-center font-bold rounded-lg transition-all ${
               activeTab === 'incoming'
-                ? 'bg-slate-800 text-teal-300 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#1D4ED8] text-white shadow-xs'
+                : 'text-[#64748B] hover:text-[#0F172A]'
             }`}
           >
             Incoming ({incomingRequests.length})
           </button>
           <button
             onClick={() => setActiveTab('sent')}
-            className={`flex-1 py-1 text-center font-medium rounded-md transition-colors ${
+            className={`flex-1 py-1.5 text-center font-bold rounded-lg transition-all ${
               activeTab === 'sent'
-                ? 'bg-slate-800 text-teal-300 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#1D4ED8] text-white shadow-xs'
+                : 'text-[#64748B] hover:text-[#0F172A]'
             }`}
           >
             My Requests ({sentRequests.length})
@@ -116,16 +116,17 @@ export const MentorshipScreen: React.FC<Props> = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+      <div className="space-y-3.5">
         {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400">Loading mentorship relations...</div>
+          <div className="py-12 text-center text-xs text-[#64748B] bg-white rounded-2xl border border-[#E2E8F0] p-8">
+            Loading mentorship relations...
+          </div>
         ) : activeTab === 'active' ? (
-          /* Active Relationships & Learning Plans */
           activeRelationships.length === 0 ? (
-            <div className="py-12 text-center space-y-2 bg-slate-900/50 rounded-xl border border-slate-800 p-6">
-              <UserCheck className="w-8 h-8 text-slate-600 mx-auto" />
-              <h3 className="text-sm font-semibold text-slate-200">No active mentorships yet</h3>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto">
+            <div className="py-12 text-center space-y-2 bg-white rounded-2xl border border-[#E2E8F0] p-8">
+              <UserCheck className="w-8 h-8 text-[#94A3B8] mx-auto" />
+              <h3 className="text-sm font-bold text-[#0F172A]">No active mentorships yet</h3>
+              <p className="text-xs text-[#64748B] max-w-xs mx-auto">
                 Explore experienced doctors in Discover to request structured guidance or accept an incoming request.
               </p>
             </div>
@@ -140,34 +141,34 @@ export const MentorshipScreen: React.FC<Props> = ({
               return (
                 <div
                   key={req.id}
-                  className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3"
+                  className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3.5 shadow-xs"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <button
                       onClick={() => onOpenDoctorProfile(counterpartId)}
-                      className="flex items-center gap-2.5 text-left"
+                      className="flex items-center gap-3 text-left"
                     >
                       <img
                         src={counterpartAvatar}
                         alt={counterpartName}
-                        className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-800"
+                        className="w-11 h-11 rounded-full object-cover ring-1 ring-[#E2E8F0]"
                       />
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-100">
+                          <span className="text-xs sm:text-sm font-bold text-[#0F172A]">
                             {counterpartName}
                           </span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-950 text-teal-400 font-medium">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E0F2FE] text-[#0284C7] font-bold">
                             {isUserMentor ? 'Mentee' : 'Mentor'}
                           </span>
                         </div>
-                        <span className="text-[11px] text-slate-400">{counterpartSpecialty}</span>
+                        <span className="text-xs text-[#64748B]">{counterpartSpecialty}</span>
                       </div>
                     </button>
 
                     <button
                       onClick={() => onOpenConversation(counterpartId)}
-                      className="px-2.5 py-1.5 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 text-xs font-medium border border-teal-700/50 flex items-center gap-1 transition-colors"
+                      className="px-3 py-1.5 rounded-xl bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#1D4ED8] text-xs font-bold border border-[#BFDBFE] flex items-center gap-1.5 transition-colors"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
                       <span>Message</span>
@@ -175,55 +176,55 @@ export const MentorshipScreen: React.FC<Props> = ({
                   </div>
 
                   {/* Objective */}
-                  <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80 space-y-1">
-                    <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
+                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider">
                       Agreed Learning Objective:
                     </span>
-                    <p className="text-xs text-slate-200 leading-relaxed">
+                    <p className="text-xs text-[#0F172A] leading-relaxed font-medium">
                       {req.learningObjective}
                     </p>
                   </div>
 
                   {/* Learning Plan Milestones */}
                   {req.learningPlan && (
-                    <div className="space-y-2 pt-1 border-t border-slate-800">
-                      <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                        <div className="flex items-center gap-1.5 text-teal-300">
-                          <BookOpen className="w-3.5 h-3.5" />
+                    <div className="space-y-2 pt-2 border-t border-[#F1F5F9]">
+                      <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
+                        <div className="flex items-center gap-1.5 text-[#1D4ED8]">
+                          <BookOpen className="w-4 h-4" />
                           <span>Structured Learning Plan</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-normal">
+                        <span className="text-[11px] text-[#64748B] font-semibold">
                           {req.learningPlan.durationWeeks} Weeks Target
                         </span>
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {req.learningPlan.milestones.map((m) => (
                           <div
                             key={m.id}
-                            className={`p-2 rounded-lg border text-xs flex items-start gap-2 ${
+                            className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 ${
                               m.completed
-                                ? 'bg-teal-950/20 border-teal-800/40 text-slate-300'
-                                : 'bg-slate-950/60 border-slate-800 text-slate-200'
+                                ? 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]'
+                                : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
                             }`}
                           >
                             <div className="mt-0.5">
                               {m.completed ? (
-                                <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
+                                <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
                               ) : (
-                                <div className="w-3.5 h-3.5 rounded-full border border-slate-600" />
+                                <div className="w-4 h-4 rounded-full border border-[#94A3B8]" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-1">
-                                <span className={`font-medium ${m.completed ? 'line-through text-slate-400' : ''}`}>
+                                <span className={`font-bold ${m.completed ? 'line-through text-[#64748B]' : ''}`}>
                                   {m.title}
                                 </span>
                                 {m.dueDate && (
-                                  <span className="text-[10px] text-slate-500">{m.dueDate}</span>
+                                  <span className="text-[10px] text-[#64748B] font-medium">{m.dueDate}</span>
                                 )}
                               </div>
-                              <p className="text-[11px] text-slate-400 leading-normal mt-0.5">
+                              <p className="text-[11px] text-[#64748B] leading-normal mt-0.5">
                                 {m.description}
                               </p>
                             </div>
@@ -237,51 +238,50 @@ export const MentorshipScreen: React.FC<Props> = ({
             })
           )
         ) : activeTab === 'incoming' ? (
-          /* Incoming Requests for Senior Doctor */
           incomingRequests.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-400">
+            <div className="py-12 text-center text-xs text-[#64748B] bg-white rounded-2xl border border-[#E2E8F0] p-8">
               No pending mentorship requests for your profile.
             </div>
           ) : (
             incomingRequests.map((req) => (
               <div
                 key={req.id}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3"
+                className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3.5 shadow-xs"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-3">
                     <img
                       src={req.requesterAvatarUrl}
                       alt={req.requesterName}
-                      className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-800"
+                      className="w-11 h-11 rounded-full object-cover ring-1 ring-[#E2E8F0]"
                     />
                     <div>
-                      <span className="text-xs font-bold text-slate-100 block">
+                      <span className="text-xs sm:text-sm font-bold text-[#0F172A] block">
                         {req.requesterName}
                       </span>
-                      <span className="text-[11px] text-teal-400 block">
+                      <span className="text-xs text-[#0284C7] font-semibold block">
                         {req.requesterSpecialty}
                       </span>
                     </div>
                   </div>
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                    className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${
                       req.status === 'Accepted'
-                        ? 'bg-teal-950 text-teal-400'
+                        ? 'bg-[#DCFCE7] text-[#166534]'
                         : req.status === 'Declined'
-                        ? 'bg-rose-950 text-rose-400'
-                        : 'bg-amber-950 text-amber-400'
+                        ? 'bg-[#FEE2E2] text-[#991B1B]'
+                        : 'bg-[#FEF3C7] text-[#92400E]'
                     }`}
                   >
                     {req.status}
                   </span>
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
+                <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider">
                     Requested Learning Objective:
                   </span>
-                  <p className="text-xs text-slate-200 leading-relaxed">
+                  <p className="text-xs text-[#0F172A] leading-relaxed font-medium">
                     {req.learningObjective}
                   </p>
                 </div>
@@ -290,14 +290,14 @@ export const MentorshipScreen: React.FC<Props> = ({
                   <div className="flex items-center justify-end gap-2 pt-1">
                     <button
                       onClick={() => handleUpdateStatus(req.id, 'Declined')}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1 transition-colors"
+                      className="px-3 py-1.5 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#475569] text-xs font-bold flex items-center gap-1 transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
                       <span>Decline</span>
                     </button>
                     <button
                       onClick={() => handleUpdateStatus(req.id, 'Accepted')}
-                      className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1 shadow-sm transition-colors"
+                      className="px-3.5 py-1.5 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>Accept & Setup Plan</span>
@@ -308,44 +308,43 @@ export const MentorshipScreen: React.FC<Props> = ({
             ))
           )
         ) : (
-          /* Sent Requests */
           sentRequests.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-400">
+            <div className="py-12 text-center text-xs text-[#64748B] bg-white rounded-2xl border border-[#E2E8F0] p-8">
               You have not submitted any mentorship requests yet.
             </div>
           ) : (
             sentRequests.map((req) => (
               <div
                 key={req.id}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2.5"
+                className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3 shadow-xs"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <img
                       src={req.mentorAvatarUrl}
                       alt={req.mentorName}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="w-10 h-10 rounded-full object-cover ring-1 ring-[#E2E8F0]"
                     />
                     <div>
-                      <span className="text-xs font-semibold text-slate-100 block">
+                      <span className="text-xs font-bold text-[#0F172A] block">
                         To {req.mentorName}
                       </span>
-                      <span className="text-[10px] text-teal-400">{req.mentorSpecialty}</span>
+                      <span className="text-[11px] text-[#0284C7] font-semibold">{req.mentorSpecialty}</span>
                     </div>
                   </div>
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                    className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${
                       req.status === 'Accepted'
-                        ? 'bg-teal-950 text-teal-400'
+                        ? 'bg-[#DCFCE7] text-[#166534]'
                         : req.status === 'Declined'
-                        ? 'bg-rose-950 text-rose-400'
-                        : 'bg-amber-950 text-amber-400'
+                        ? 'bg-[#FEE2E2] text-[#991B1B]'
+                        : 'bg-[#FEF3C7] text-[#92400E]'
                     }`}
                   >
                     {req.status}
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 bg-slate-950 p-2 rounded border border-slate-800/80">
+                <p className="text-xs text-[#0F172A] bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0] font-medium leading-relaxed">
                   {req.learningObjective}
                 </p>
               </div>

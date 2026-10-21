@@ -4,11 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { DoctorProfile, Post, Story, Institution } from './types';
+import { DoctorProfile, Post, PostType, Story, Institution } from './types';
 import { api } from './services/api';
 import { MobileShell } from './components/layout/MobileShell';
 import { TopHeader } from './components/layout/TopHeader';
 import { BottomNav } from './components/layout/BottomNav';
+import { LeftSidebar } from './components/layout/LeftSidebar';
+import { RightSidebar } from './components/layout/RightSidebar';
 import { FeedScreen } from './components/feed/FeedScreen';
 import { DiscoverScreen } from './components/discover/DiscoverScreen';
 import { PostComposerModal } from './components/composer/PostComposerModal';
@@ -25,12 +27,26 @@ import { AuthModal } from './components/auth/AuthModal';
 import { ReportModal } from './components/safety/ReportModal';
 import { ArchitectureModal } from './components/architecture/ArchitectureModal';
 import { TermsModal } from './components/common/TermsModal';
+import { DoctorKnowledgeMap } from './components/maps/DoctorKnowledgeMap';
+import { ReelsScreen } from './components/reels/ReelsScreen';
+import { useNoveaLogo } from './components/branding/useNoveaLogo';
+import { LogoSettingsModal } from './components/branding/LogoSettingsModal';
+import { AnimatedLaunchScreen } from './components/launch/AnimatedLaunchScreen';
+import { ProfessionalRankingModal } from './components/ranking/ProfessionalRankingModal';
 
 export default function App() {
   const [productName, setProductName] = useState('Doctor Knowledge Network');
   const [activeTab, setActiveTab] = useState<string>('home');
   const [feedFilter, setFeedFilter] = useState<string>('all');
   const [currentDoctor, setCurrentDoctor] = useState<DoctorProfile | null>(null);
+
+  // Animated Launch Screen State
+  const [isLaunchScreenActive, setIsLaunchScreenActive] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      return !window.sessionStorage.getItem('novea_launch_seen');
+    }
+    return true;
+  });
 
   // Policy & Terms Consent State
   const [isPhiPolicyAccepted, setIsPhiPolicyAccepted] = useState(false);
@@ -46,11 +62,16 @@ export default function App() {
   const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
 
   // Independent Modals
+  const { activeLogo } = useNoveaLogo();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [composerInitialType, setComposerInitialType] = useState<PostType>('case_discussion');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isLogoSettingsOpen, setIsLogoSettingsOpen] = useState(false);
+  const [isRankingOpen, setIsRankingOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
 
   // Mentorship dialog
@@ -156,27 +177,58 @@ export default function App() {
     }
   };
 
+  const handleEnterApp = () => {
+    setIsLaunchScreenActive(false);
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem('novea_launch_seen', 'true');
+    }
+  };
+
+  if (isLaunchScreenActive) {
+    return (
+      <AnimatedLaunchScreen
+        currentDoctor={currentDoctor}
+        onEnterApp={handleEnterApp}
+        onOpenAuth={() => {
+          setIsLaunchScreenActive(false);
+          setIsAuthOpen(true);
+        }}
+        onContinueAsGuest={handleEnterApp}
+      />
+    );
+  }
+
   if (!currentDoctor) {
     return (
-      <div className="min-h-screen bg-[#12345B] flex items-center justify-center text-white text-xs">
-        Loading AMT Doctor Knowledge Network...
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-[#0F172A]">
+        <div className="flex flex-col items-center max-w-sm text-center space-y-4 animate-fadeIn">
+          {/* Active NOVEA Logo */}
+          <div className="h-14 flex items-center justify-center mb-1">
+            {activeLogo.renderLogo({ className: 'h-10 sm:h-12 w-auto' })}
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#64748B]">
+            <span className="w-2 h-2 rounded-full bg-[#1D4ED8] animate-ping" />
+            <span>Connecting to verified medical network...</span>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <MobileShell
-      productName={productName}
-      onUpdateProductName={(name) => setProductName(name)}
-      onOpenSpecs={() => setIsArchitectureOpen(true)}
-    >
-      {/* Top Header: Left Feed Title, Right Independent Chat & Notifications */}
+    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
+      {/* Top Header: Left Profile Avatar, Center Rotating NOVEA Logo, Right Actions */}
       <TopHeader
         currentDoctor={currentDoctor}
         unreadChatCount={unreadChatCount}
         unreadNotificationCount={unreadNotificationCount}
         feedFilter={feedFilter}
         onFeedFilterChange={(f) => setFeedFilter(f)}
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setViewDoctorId(undefined);
+          setActiveTab(tab);
+        }}
         onOpenChat={() => {
           setIsChatOpen(true);
           setUnreadChatCount(0);
@@ -192,76 +244,129 @@ export default function App() {
         }}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenSafetyPolicy={() => setIsTermsModalOpen(true)}
+        onOpenMap={() => setIsMapModalOpen(true)}
+        onOpenLogoSettings={() => setIsLogoSettingsOpen(true)}
+        onOpenRankings={() => setIsRankingOpen(true)}
+        onReplayLaunch={() => setIsLaunchScreenActive(true)}
       />
 
-      {/* Main Screen View (based on bottom nav) */}
-      <main className="flex-1 flex flex-col min-h-0 relative">
-        {activeTab === 'home' && (
-          <FeedScreen
-            currentUser={currentDoctor}
-            stories={stories}
-            feedFilter={feedFilter}
-            isPolicyAccepted={isPhiPolicyAccepted}
-            onAcceptPolicy={handleAcceptPhiPolicy}
-            onOpenStory={(s) => setActiveStory(s)}
-            onOpenCreateStory={() => setIsCreateStoryOpen(true)}
-            onOpenAuthorProfile={handleOpenDoctorProfile}
-            onOpenInstitutionDetail={handleOpenInstitutionDetail}
-            onOpenMentorshipTab={() => setActiveTab('mentorship')}
-            onReport={handleReportContent}
-          />
-        )}
-
-        {activeTab === 'discover' && (
-          <DiscoverScreen
-            onOpenDoctorProfile={handleOpenDoctorProfile}
-            onOpenInstitutionDetail={handleOpenInstitutionDetail}
-            onRequestMentorship={handleOpenMentorshipRequest}
-            onSelectCommunity={(specialty) => {
-              setFeedFilter(specialty);
-              setActiveTab('home');
-            }}
-          />
-        )}
-
-        {activeTab === 'communities' && (
-          <CommunitiesScreen
-            onSelectCommunityFeed={(specialty) => {
-              setFeedFilter(specialty);
-              setActiveTab('home');
-            }}
-            onOpenInstitutionDetail={handleOpenInstitutionDetail}
-          />
-        )}
-
-        {activeTab === 'profile' && (
-          <ProfileScreen
-            doctorId={viewDoctorId}
-            onOpenInstitutionDetail={handleOpenInstitutionDetail}
-            onOpenDoctorProfile={handleOpenDoctorProfile}
-            onOpenMentorshipTab={() => setActiveTab('mentorship')}
-            onOpenAuthModal={() => setIsAuthOpen(true)}
-          />
-        )}
-
-        {activeTab === 'mentorship' && (
-          <MentorshipScreen
+      {/* Main Responsive Three-Column Desktop & Fluid Mobile Layout */}
+      <div className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex gap-6">
+        {/* Left Sidebar (Desktop lg+) */}
+        <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
+          <LeftSidebar
             currentDoctor={currentDoctor}
-            onOpenConversation={() => setIsChatOpen(true)}
-            onOpenDoctorProfile={handleOpenDoctorProfile}
+            activeTab={activeTab}
+            onSelectTab={(tab) => {
+              setViewDoctorId(undefined);
+              setActiveTab(tab);
+            }}
+            onOpenProfile={() => {
+              setViewDoctorId(undefined);
+              setActiveTab('profile');
+            }}
+            onOpenMap={() => setIsMapModalOpen(true)}
+            onOpenSafetyPolicy={() => setIsTermsModalOpen(true)}
+            onOpenInstitutionDetail={handleOpenInstitutionDetail}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenRankings={() => setIsRankingOpen(true)}
           />
-        )}
-      </main>
+        </aside>
 
-      {/* Exactly Five Options Bottom Navigation (Section 6) */}
-      <BottomNav
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setViewDoctorId(undefined);
-          setActiveTab(tab);
-        }}
-        onOpenCreate={() => setIsComposerOpen(true)}
-      />
+        {/* Center Main Screen View */}
+        <main className="flex-1 min-w-0 max-w-full">
+          {activeTab === 'home' && (
+            <FeedScreen
+              currentUser={currentDoctor}
+              stories={stories}
+              feedFilter={feedFilter}
+              isPolicyAccepted={isPhiPolicyAccepted}
+              onAcceptPolicy={handleAcceptPhiPolicy}
+              onOpenStory={(s) => setActiveStory(s)}
+              onOpenCreateStory={() => setIsCreateStoryOpen(true)}
+              onOpenAuthorProfile={handleOpenDoctorProfile}
+              onOpenInstitutionDetail={handleOpenInstitutionDetail}
+              onOpenMentorshipTab={() => setActiveTab('mentorship')}
+              onReport={handleReportContent}
+              onOpenComposer={() => setIsComposerOpen(true)}
+            />
+          )}
+
+          {activeTab === 'reels' && (
+            <ReelsScreen
+              currentUser={currentDoctor}
+              onOpenDoctorProfile={handleOpenDoctorProfile}
+              onOpenChatWithAuthor={(authorId) => {
+                handleOpenDoctorProfile(authorId);
+              }}
+            />
+          )}
+
+          {activeTab === 'discover' && (
+            <DiscoverScreen
+              onOpenDoctorProfile={handleOpenDoctorProfile}
+              onOpenInstitutionDetail={handleOpenInstitutionDetail}
+              onRequestMentorship={handleOpenMentorshipRequest}
+              onOpenMap={() => setIsMapModalOpen(true)}
+              onSelectCommunity={(specialty) => {
+                setFeedFilter(specialty);
+                setActiveTab('home');
+              }}
+            />
+          )}
+
+          {activeTab === 'communities' && (
+            <CommunitiesScreen
+              onSelectCommunityFeed={(specialty) => {
+                setFeedFilter(specialty);
+                setActiveTab('home');
+              }}
+              onOpenInstitutionDetail={handleOpenInstitutionDetail}
+            />
+          )}
+
+          {activeTab === 'profile' && (
+            <ProfileScreen
+              doctorId={viewDoctorId}
+              onOpenInstitutionDetail={handleOpenInstitutionDetail}
+              onOpenDoctorProfile={handleOpenDoctorProfile}
+              onOpenMentorshipTab={() => setActiveTab('mentorship')}
+              onOpenAuthModal={() => setIsAuthOpen(true)}
+            />
+          )}
+
+          {activeTab === 'mentorship' && (
+            <MentorshipScreen
+              currentDoctor={currentDoctor}
+              onOpenConversation={() => setIsChatOpen(true)}
+              onOpenDoctorProfile={handleOpenDoctorProfile}
+            />
+          )}
+        </main>
+
+        {/* Right Sidebar (Desktop xl+) */}
+        <aside className="hidden xl:block w-80 shrink-0">
+          <RightSidebar
+            onOpenMap={() => setIsMapModalOpen(true)}
+            onOpenSpecs={() => setIsArchitectureOpen(true)}
+            onOpenDoctorProfile={handleOpenDoctorProfile}
+            onRequestMentorship={handleOpenMentorshipRequest}
+            onOpenChat={() => setIsChatOpen(true)}
+          />
+        </aside>
+      </div>
+
+      {/* Exactly Five Options Bottom Navigation (Mobile & Tablet < lg) */}
+      <div className="block lg:hidden sticky bottom-0 z-30">
+        <BottomNav
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setViewDoctorId(undefined);
+            setActiveTab(tab);
+          }}
+          onOpenCreate={() => setIsComposerOpen(true)}
+        />
+      </div>
 
       {/* Interactive Story Viewer (with 23:59:59 local midnight expiry) */}
       <StoryViewerModal
@@ -299,12 +404,43 @@ export default function App() {
       />
 
       {/* Independent Chat Inbox Modal (opened from Top-Right Header) */}
-      <ChatModal
-        currentUser={currentDoctor}
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        onOpenDoctorProfile={handleOpenDoctorProfile}
-      />
+      {currentDoctor && (
+        <ChatModal
+          currentUser={currentDoctor}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          onOpenDoctorProfile={handleOpenDoctorProfile}
+          onOpenFullMap={() => {
+            setIsChatOpen(false);
+            setIsMapModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* Google Maps Medical Knowledge Circles & Hospital Networks Modal */}
+      {isMapModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Google Maps Medical Knowledge Circles & Hospital Network"
+          className="fixed inset-0 z-50 bg-[#070B18]/90 backdrop-blur-md flex items-center justify-center p-0 md:p-4 animate-fadeIn"
+        >
+          <div className="w-full max-w-5xl h-full md:h-[90vh] md:max-h-[850px] bg-[#070D18] md:rounded-3xl overflow-hidden border border-[#16845B]/60 shadow-2xl flex flex-col">
+            <DoctorKnowledgeMap
+              currentUser={currentDoctor}
+              onSelectDoctor={(docId) => {
+                setIsMapModalOpen(false);
+                handleOpenDoctorProfile(docId);
+              }}
+              onOpenChatWithDoctor={() => {
+                setIsMapModalOpen(false);
+                setIsChatOpen(true);
+              }}
+              onClose={() => setIsMapModalOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Independent Notifications Modal (opened from Top-Right Header) */}
       <NotificationsModal
@@ -366,6 +502,20 @@ export default function App() {
         isOpen={isArchitectureOpen}
         onClose={() => setIsArchitectureOpen(false)}
       />
-    </MobileShell>
+
+      {/* NOVEA Official Logo Settings & 36-Concept Rotation Gallery */}
+      <LogoSettingsModal
+        isOpen={isLogoSettingsOpen}
+        onClose={() => setIsLogoSettingsOpen(false)}
+      />
+
+      {/* NOVEA Professional Rankings & Verification Badges Leaderboard */}
+      <ProfessionalRankingModal
+        isOpen={isRankingOpen}
+        onClose={() => setIsRankingOpen(false)}
+        onOpenDoctorProfile={handleOpenDoctorProfile}
+        onOpenInstitutionDetail={handleOpenInstitutionDetail}
+      />
+    </div>
   );
 }

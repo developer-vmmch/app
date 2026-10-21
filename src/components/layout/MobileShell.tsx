@@ -41,7 +41,7 @@ export const MobileShell: React.FC<Props> = ({
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#EAF3FF] text-[#12345B] font-bold border border-[#246BCE]/30">
             <span className="w-2 h-2 rounded-full bg-[#16845B]" />
-            <span className="text-[11px] sm:text-xs">AMT Tech Nova</span>
+            <span className="text-[11px] sm:text-xs">NOVA</span>
           </div>
 
           {/* Configurable Name Editor */}

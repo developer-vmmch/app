@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Filter,
   RefreshCw,
-  Award,
   BookOpen,
-  ChevronRight,
-  Building2,
-  Stethoscope,
+  Image as ImageIcon,
+  FileText,
+  Film,
+  Video,
 } from 'lucide-react';
-import { Post, DoctorProfile, Story } from '../../types';
+import { Post, DoctorProfile, Story, PostType } from '../../types';
 import { api } from '../../services/api';
 import { PostCard } from './PostCard';
 import { CommentsModal } from './CommentsModal';
 import { StoriesRow } from '../stories/StoriesRow';
 import { ClinicalSafetyBanner } from '../common/ClinicalSafetyBanner';
+import { Avatar } from '../common/Avatar';
 
 interface Props {
   currentUser: DoctorProfile;
@@ -27,16 +27,9 @@ interface Props {
   onOpenInstitutionDetail: (instId: string) => void;
   onOpenMentorshipTab: () => void;
   onReport: (post: Post) => void;
+  onOpenComposer?: (initialType?: PostType) => void;
+  onSelectTag?: (tag: string) => void;
 }
-
-const SPECIALTY_CHIPS = [
-  'All',
-  'Cardiology',
-  'General Medicine',
-  'Pediatrics',
-  'Neurosurgery',
-  'Critical Care',
-];
 
 export const FeedScreen: React.FC<Props> = ({
   currentUser,
@@ -50,18 +43,24 @@ export const FeedScreen: React.FC<Props> = ({
   onOpenInstitutionDetail,
   onOpenMentorshipTab,
   onReport,
+  onOpenComposer,
+  onSelectTag,
 }) => {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [selectedSpecialty, setSelectedSpecialty] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [categoryTab, setCategoryTab] = useState<'all' | 'posts' | 'videos' | 'reels' | 'articles'>('all');
   const [activeCommentsPost, setActiveCommentsPost] = useState<Post | null>(null);
 
   const fetchFeed = async () => {
     setLoading(true);
+    const specialtyParam =
+      feedFilter !== 'all' && feedFilter !== 'institutions' ? feedFilter : undefined;
+
     const res = await api.getFeed({
-      specialty: selectedSpecialty !== 'All' ? selectedSpecialty : feedFilter !== 'all' && feedFilter !== 'institutions' ? feedFilter : undefined,
+      specialty: specialtyParam,
       filterScope: feedFilter === 'institutions' ? 'institutions' : undefined,
     });
+
     if (res.success) {
       setPosts(res.data);
     }
@@ -70,7 +69,7 @@ export const FeedScreen: React.FC<Props> = ({
 
   useEffect(() => {
     fetchFeed();
-  }, [selectedSpecialty, feedFilter]);
+  }, [feedFilter]);
 
   const handleLike = async (postId: string) => {
     const res = await api.toggleLikePost(postId);
@@ -101,79 +100,155 @@ export const FeedScreen: React.FC<Props> = ({
     }
   };
 
+  const filteredPosts = posts.filter((post) => {
+    if (categoryTab === 'all') return true;
+    if (categoryTab === 'posts') {
+      return (
+        post.postType === 'case_discussion' ||
+        post.postType === 'knowledge_post' ||
+        post.postType === 'clinical_question' ||
+        post.postType === 'clinical_pearl' ||
+        post.postType === 'poll' ||
+        (!post.postType && post.mediaType !== 'video')
+      );
+    }
+    if (categoryTab === 'videos') {
+      return post.mediaType === 'video' || post.postType === 'video';
+    }
+    if (categoryTab === 'reels') {
+      return post.postType === 'video' || (post.mediaType === 'video' && (!post.title || post.body.length < 160));
+    }
+    if (categoryTab === 'articles') {
+      return post.postType === 'article';
+    }
+    return true;
+  });
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#F6F9FD]">
+    <div className="flex-1 flex flex-col min-h-0 space-y-3 sm:space-y-4">
       {/* Patient PHI Safety Banner (only displayed if not yet accepted) */}
       <ClinicalSafetyBanner
         isPolicyAccepted={isPolicyAccepted}
         onAcceptPolicy={onAcceptPolicy}
       />
 
-      {/* Stories Row directly below Top Header (Section 4) */}
-      <StoriesRow
-        stories={stories}
-        currentUser={currentUser}
-        onOpenStory={onOpenStory}
-        onOpenCreateStory={onOpenCreateStory}
-      />
-
-      {/* Filter Row */}
-      <div className="px-3.5 py-2 bg-white border-b border-[#E1E9F3] shrink-0">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-          {SPECIALTY_CHIPS.map((spec) => (
-            <button
-              key={spec}
-              onClick={() => setSelectedSpecialty(spec)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
-                selectedSpecialty === spec
-                  ? 'bg-[#12345B] text-white shadow-2xs'
-                  : 'bg-[#F6F9FD] text-[#63738A] hover:bg-[#EAF3FF] hover:text-[#246BCE] border border-[#E1E9F3]'
-              }`}
-            >
-              {spec}
-            </button>
-          ))}
-        </div>
+      {/* 1. Stories Carousel Row */}
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-3 shadow-xs">
+        <StoriesRow
+          stories={stories}
+          currentUser={currentUser}
+          onOpenStory={onOpenStory}
+          onOpenCreateStory={onOpenCreateStory}
+        />
       </div>
 
-      {/* Posts List */}
-      <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 min-h-0">
-        {/* Mentorship Link Banner */}
-        <div className="bg-[#EAF3FF] border border-[#246BCE]/30 rounded-xl p-3 flex items-center justify-between gap-3 shadow-2xs">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#12345B]">
-              <Award className="w-4 h-4 text-[#246BCE]" />
-              <span>Doctor-to-Doctor Mentorship</span>
-            </div>
-            <p className="text-[11px] text-[#63738A]">
-              Connect with verified senior specialists for structured clinical learning.
-            </p>
-          </div>
+      {/* 2. Feed Category Tabs (Section 2: All, Posts, Videos, Reels, Articles) */}
+      <div
+        role="tablist"
+        aria-label="Feed category filters"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="flex items-center gap-2 overflow-x-auto scrollbar-none no-scrollbar py-0.5 shrink-0 [&::-webkit-scrollbar]:hidden"
+      >
+        {[
+          { id: 'all' as const, label: 'All' },
+          { id: 'posts' as const, label: 'Posts' },
+          { id: 'videos' as const, label: 'Videos' },
+          { id: 'reels' as const, label: 'Reels' },
+          { id: 'articles' as const, label: 'Articles' },
+        ].map((tab) => {
+          const isActive = categoryTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setCategoryTab(tab.id)}
+              className={`px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                isActive
+                  ? 'bg-[#1D4ED8] text-white shadow-xs'
+                  : 'bg-white hover:bg-[#F8FAFC] text-[#475569] hover:text-[#0F172A] border border-[#E2E8F0]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 3. Compact Post Composer Input Card (Post, Photo/Video, Reel, Article) */}
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-3 sm:p-3.5 shadow-xs space-y-2.5">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <Avatar
+            src={currentUser.avatarUrl}
+            name={currentUser.fullName}
+            id={currentUser.id}
+            size="md"
+          />
           <button
-            onClick={onOpenMentorshipTab}
-            className="px-3 py-1.5 rounded-lg bg-[#246BCE] hover:bg-[#12345B] text-white text-xs font-bold shrink-0 flex items-center gap-1 transition-colors"
+            onClick={() => onOpenComposer && onOpenComposer('case_discussion')}
+            className="flex-1 text-left bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] hover:text-[#0F172A] px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs font-medium border border-[#E2E8F0] transition-all shadow-2xs truncate cursor-pointer"
           >
-            <span>Explore</span>
-            <ChevronRight className="w-3.5 h-3.5" />
+            Share knowledge with the NOVA medical community…
           </button>
         </div>
 
-        {/* Feed Posts */}
+        {/* Shortcuts: Exactly 4 creation actions (Post, Photo/Video, Reel, Article) */}
+        <div className="grid grid-cols-4 gap-1 sm:gap-2 pt-2 border-t border-[#F1F5F9] text-xs font-semibold text-[#475569]">
+          <button
+            onClick={() => onOpenComposer && onOpenComposer('case_discussion')}
+            className="flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl hover:bg-[#F8FAFC] hover:text-[#1D4ED8] transition-colors cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#2563EB] shrink-0" />
+            <span className="text-[11px] sm:text-xs truncate">Post</span>
+          </button>
+
+          <button
+            onClick={() => onOpenComposer && onOpenComposer('case_discussion')}
+            className="flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl hover:bg-[#F8FAFC] hover:text-[#0D9488] transition-colors cursor-pointer"
+          >
+            <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0D9488] shrink-0" />
+            <span className="text-[11px] sm:text-xs truncate">Photo/Video</span>
+          </button>
+
+          <button
+            onClick={() => onOpenComposer && onOpenComposer('video')}
+            className="flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl hover:bg-[#F8FAFC] hover:text-[#7C3AED] transition-colors cursor-pointer"
+          >
+            <Film className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#7C3AED] shrink-0" />
+            <span className="text-[11px] sm:text-xs truncate">Reel</span>
+          </button>
+
+          <button
+            onClick={() => onOpenComposer && onOpenComposer('article')}
+            className="flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl hover:bg-[#F8FAFC] hover:text-[#0284C7] transition-colors cursor-pointer"
+          >
+            <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7] shrink-0" />
+            <span className="text-[11px] sm:text-xs truncate">Article</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 4. Social Feed Posts List */}
+      <div className="space-y-3 sm:space-y-4">
         {loading ? (
-          <div className="py-12 text-center space-y-2">
-            <RefreshCw className="w-6 h-6 text-[#246BCE] animate-spin mx-auto" />
-            <p className="text-xs text-[#63738A]">Loading verified medical discussions...</p>
+          <div className="py-12 text-center space-y-2 bg-white rounded-2xl border border-[#E2E8F0] p-8 shadow-xs">
+            <RefreshCw className="w-6 h-6 text-[#1D4ED8] animate-spin mx-auto" />
+            <p className="text-xs text-[#64748B]">Loading verified medical discussions...</p>
           </div>
-        ) : posts.length === 0 ? (
-          <div className="py-12 text-center space-y-2 bg-white rounded-xl border border-[#E1E9F3] p-6">
-            <BookOpen className="w-8 h-8 text-[#63738A] mx-auto" />
-            <h3 className="text-sm font-bold text-[#12345B]">No posts in this filter</h3>
-            <p className="text-xs text-[#63738A] max-w-xs mx-auto">
-              Be the first doctor to post a case discussion or question in this specialty.
+        ) : filteredPosts.length === 0 ? (
+          <div className="py-12 text-center space-y-2 bg-white rounded-2xl border border-[#E2E8F0] p-8 shadow-xs">
+            <BookOpen className="w-8 h-8 text-[#94A3B8] mx-auto" />
+            <h3 className="text-sm font-bold text-[#0F172A]">
+              {categoryTab === 'all'
+                ? 'No discussions in this filter'
+                : `No ${categoryTab} found`}
+            </h3>
+            <p className="text-xs text-[#64748B] max-w-xs mx-auto">
+              Be the first doctor to publish in this category.
             </p>
           </div>
         ) : (
-          posts.map((post) => (
+          filteredPosts.map((post) => (
             <PostCard
               key={post.id}
               post={post}
@@ -184,16 +259,20 @@ export const FeedScreen: React.FC<Props> = ({
               onOpenAuthorProfile={onOpenAuthorProfile}
               onOpenInstitutionDetail={onOpenInstitutionDetail}
               onReport={onReport}
+              onSelectTag={onSelectTag}
             />
           ))
         )}
       </div>
 
-      {/* Comments Drawer */}
+      {/* Comments Modal */}
       {activeCommentsPost && (
         <CommentsModal
           post={activeCommentsPost}
-          onClose={() => setActiveCommentsPost(null)}
+          onClose={() => {
+            setActiveCommentsPost(null);
+            fetchFeed();
+          }}
           onOpenAuthorProfile={onOpenAuthorProfile}
         />
       )}

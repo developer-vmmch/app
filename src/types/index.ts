@@ -1,7 +1,12 @@
+export type AccountCategory = 'doctor' | 'clinic' | 'hospital';
+
+export type VerificationType = 'DOCTOR' | 'CLINIC' | 'HOSPITAL';
+
 export type VerificationStatus =
   | 'NOT_STARTED'
   | 'SUBMITTED'
   | 'PENDING_REVIEW'
+  | 'UNDER_REVIEW'
   | 'VERIFIED'
   | 'REJECTED'
   | 'REQUIRES_MORE_INFORMATION'
@@ -148,9 +153,12 @@ export interface InstitutionMembership {
 
 export interface DoctorProfile {
   id: string; // Stable internal account ID format: AMT-DOC-xxxx
+  username?: string;
   fullName: string;
   email: string;
   mobileNumber?: string;
+  accountCategory?: AccountCategory;
+  verificationType?: VerificationType;
   country: string;
   medicalProfession: string;
   primarySpecialty: string;
@@ -314,11 +322,24 @@ export interface Message {
   text: string;
   createdAt: string;
   status: 'sent' | 'delivered' | 'read' | 'failed';
-  attachmentType?: 'article' | 'case_ref' | 'image';
+  attachmentType?: 'article' | 'case_ref' | 'image' | 'location' | 'voice_call' | 'video_call' | 'voice_note' | 'document';
   attachmentMetadata?: {
     title: string;
     summary?: string;
     url?: string;
+    lat?: number;
+    lng?: number;
+    address?: string;
+    placeName?: string;
+    isLive?: boolean;
+    durationMinutes?: number;
+    callDurationSeconds?: number;
+    callStatus?: 'ended' | 'missed';
+  };
+  replyTo?: {
+    id: string;
+    senderName: string;
+    text: string;
   };
 }
 
@@ -332,6 +353,7 @@ export interface Conversation {
     avatarUrl: string;
     verificationStatus: VerificationStatus;
     isOnline?: boolean;
+    lastActive?: string;
   };
   lastMessage?: {
     text: string;
@@ -341,6 +363,9 @@ export interface Conversation {
   unreadCount: number;
   type: 'direct' | 'mentorship' | 'institution';
   communityName?: string;
+  isPinned?: boolean;
+  isMuted?: boolean;
+  isTyping?: boolean;
 }
 
 export interface EducationalShort {
@@ -454,3 +479,84 @@ export interface CreateMentorshipRequestDTO {
   learningObjective: string;
   proposedDurationWeeks?: number;
 }
+
+export interface RegisterUserDTO {
+  fullName: string;
+  username: string;
+  email: string;
+  mobileNumber?: string;
+  password: string;
+  accountCategory: AccountCategory;
+  country: string;
+  agreedToTerms: boolean;
+}
+
+export interface DoctorVerificationApplication {
+  id: string;
+  doctorId: string;
+  legalName: string;
+  country: string;
+  registrationCouncil: string;
+  medicalRegistrationNumber: string;
+  primarySpecialty: string;
+  qualification: string;
+  medicalCollege?: string;
+  graduationYear?: number;
+  documentUrl?: string;
+  documentName?: string;
+  status: VerificationStatus;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  auditHistory: {
+    status: VerificationStatus;
+    timestamp: string;
+    remarks: string;
+    reviewedBy?: string;
+  }[];
+}
+
+export interface OrganisationVerificationApplication {
+  id: string;
+  applicantId: string;
+  type: 'CLINIC' | 'HOSPITAL';
+  orgName: string;
+  country: string;
+  physicalAddress: string;
+  contactEmail: string;
+  contactPhone: string;
+  licenceNumber: string;
+  regAuthority: string;
+  authorizedRepresentative: string;
+  representativeRole: string;
+  accreditations?: string[];
+  documentUrl?: string;
+  documentName?: string;
+  status: VerificationStatus;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  auditHistory: {
+    status: VerificationStatus;
+    timestamp: string;
+    remarks: string;
+    reviewedBy?: string;
+  }[];
+}
+
+export interface ProfessionalRankingItem {
+  id: string;
+  rank: number;
+  name: string;
+  subtitle: string;
+  category: 'doctors' | 'contributors' | 'communities' | 'clinics' | 'hospitals';
+  avatarUrl?: string;
+  verificationStatus: VerificationStatus;
+  verificationType: VerificationType;
+  score: number;
+  metricLabel: string;
+  metricValue: string | number;
+  antiAbuseStatus: 'VALIDATED' | 'PROTECTED';
+  badges?: string[];
+}
+
