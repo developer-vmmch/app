@@ -33,6 +33,7 @@ import { useNoveaLogo } from './components/branding/useNoveaLogo';
 import { LogoSettingsModal } from './components/branding/LogoSettingsModal';
 import { AnimatedLaunchScreen } from './components/launch/AnimatedLaunchScreen';
 import { ProfessionalRankingModal } from './components/ranking/ProfessionalRankingModal';
+import { CreateMenuModal } from './components/composer/CreateMenuModal';
 
 export default function App() {
   const [productName, setProductName] = useState('Doctor Knowledge Network');
@@ -72,6 +73,7 @@ export default function App() {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isLogoSettingsOpen, setIsLogoSettingsOpen] = useState(false);
   const [isRankingOpen, setIsRankingOpen] = useState(false);
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
 
   // Mentorship dialog
@@ -248,6 +250,7 @@ export default function App() {
         onOpenLogoSettings={() => setIsLogoSettingsOpen(true)}
         onOpenRankings={() => setIsRankingOpen(true)}
         onReplayLaunch={() => setIsLaunchScreenActive(true)}
+        onOpenCreate={() => setIsCreateMenuOpen(true)}
       />
 
       {/* Main Responsive Three-Column Desktop & Fluid Mobile Layout */}
@@ -364,7 +367,7 @@ export default function App() {
             setViewDoctorId(undefined);
             setActiveTab(tab);
           }}
-          onOpenCreate={() => setIsComposerOpen(true)}
+          onOpenCreate={() => setIsCreateMenuOpen(true)}
         />
       </div>
 
@@ -515,6 +518,21 @@ export default function App() {
         onClose={() => setIsRankingOpen(false)}
         onOpenDoctorProfile={handleOpenDoctorProfile}
         onOpenInstitutionDetail={handleOpenInstitutionDetail}
+      />
+
+      {/* NOVEA Unified Create Selection Menu (Story, Post, Video/Reel) */}
+      <CreateMenuModal
+        isOpen={isCreateMenuOpen}
+        onClose={() => setIsCreateMenuOpen(false)}
+        onSelectStory={() => setIsCreateStoryOpen(true)}
+        onSelectPost={() => {
+          setComposerInitialType('case_discussion');
+          setIsComposerOpen(true);
+        }}
+        onSelectVideoReel={() => {
+          setComposerInitialType('video');
+          setIsComposerOpen(true);
+        }}
       />
     </div>
   );

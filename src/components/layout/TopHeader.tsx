@@ -18,6 +18,7 @@ import {
   Sparkles,
   Trophy,
   Play,
+  Plus,
 } from 'lucide-react';
 import { DoctorProfile } from '../../types';
 import { Avatar } from '../common/Avatar';
@@ -42,6 +43,7 @@ interface Props {
   onOpenLogoSettings?: () => void;
   onOpenRankings?: () => void;
   onReplayLaunch?: () => void;
+  onOpenCreate?: () => void;
 }
 
 export const TopHeader: React.FC<Props> = ({
@@ -61,6 +63,7 @@ export const TopHeader: React.FC<Props> = ({
   onOpenLogoSettings,
   onOpenRankings,
   onReplayLaunch,
+  onOpenCreate,
 }) => {
   const { activeLogo } = useNoveaLogo();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -370,30 +373,6 @@ export const TopHeader: React.FC<Props> = ({
             RIGHT SECTION: Search, Live Map, Messages, Notifications, Settings
             ========================================================================= */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Global Search Bar (Desktop) */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="hidden lg:flex items-center relative w-48 xl:w-64"
-          >
-            <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search NOVA..."
-              className="w-full bg-[#F8FAFC] hover:bg-[#F1F5F9] focus:bg-white text-xs text-[#0F172A] placeholder-[#94A3B8] pl-8 pr-3 py-1.5 rounded-xl border border-[#E2E8F0] focus:border-[#1D4ED8] focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/20 transition-all font-medium"
-            />
-          </form>
-
-          {/* Quick Search Button (Mobile/Tablet) */}
-          <button
-            onClick={() => onSelectTab && onSelectTab('discover')}
-            aria-label="Search NOVA"
-            title="Search Doctors & Content"
-            className="lg:hidden p-2 rounded-xl text-[#0F172A] hover:bg-[#F1F5F9] hover:text-[#1D4ED8] transition-all active:scale-95"
-          >
-            <Search className="w-4.5 h-4.5 stroke-[2.2]" />
-          </button>
 
           {/* Google Maps Live Circles Button */}
           {onOpenMap && (
@@ -417,6 +396,18 @@ export const TopHeader: React.FC<Props> = ({
             >
               <Trophy className="w-3.5 h-3.5 text-[#D97706]" />
               <span className="hidden xl:inline">Rankings</span>
+            </button>
+          )}
+
+          {/* Create Action Button (Plus icon and "Create" label) */}
+          {onOpenCreate && (
+            <button
+              onClick={onOpenCreate}
+              title="Create Story, Post or Video/Reel"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span className="hidden sm:inline">Create</span>
             </button>
           )}
 

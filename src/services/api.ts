@@ -1237,6 +1237,32 @@ class ApiClient {
     ) as PostType;
 
     const tags = dto.tags || dto.topicTags || [];
+    const isReel = tags.includes('Reels') || dto.postType === 'video';
+
+    if (dto.mediaType === 'video' || dto.postType === 'video' || dto.videoDuration !== undefined) {
+      if (dto.videoDuration !== undefined) {
+        if (isReel && (dto.videoDuration < 60 || dto.videoDuration > 150)) {
+          return {
+            success: false,
+            data: {} as Post,
+            error: {
+              code: 'INVALID_REEL_DURATION',
+              message: `Reels must be strictly between 60 and 150 seconds (1 - 2.5 minutes). Provided duration was ${Math.round(dto.videoDuration)} seconds.`,
+            },
+          };
+        }
+        if (!isReel && dto.videoDuration > 1800) {
+          return {
+            success: false,
+            data: {} as Post,
+            error: {
+              code: 'INVALID_VIDEO_DURATION',
+              message: `Standard video posts cannot exceed 30 minutes. Provided duration was ${Math.round(dto.videoDuration / 60)} minutes.`,
+            },
+          };
+        }
+      }
+    }
 
     const newPost: Post = {
       id: `post-${Date.now()}`,
@@ -1438,6 +1464,50 @@ class ApiClient {
     }
 
     return { success: true, data: newMsg, meta: { timestamp: new Date().toISOString(), version: this.apiVersion } };
+  }
+
+  async addMessageReaction(conversationId: string, messageId: string, emoji: string): Promise<ApiResponse<Message>> {
+    const user = (await this.getCurrentUser()).data;
+    const allMsgs = dataStore.getMessages();
+    const list = allMsgs[conversationId] || [];
+    const msg = list.find((m) => m.id === messageId);
+    if (!msg) {
+      return { success: false, data: {} as Message, error: { code: 'NOT_FOUND', message: 'Message not found' } };
+    }
+    if (!msg.reactions) msg.reactions = {};
+    const existingUsers = msg.reactions[emoji] || [];
+    const userIndex = existingUsers.indexOf(user.id);
+    if (userIndex > -1) {
+      existingUsers.splice(userIndex, 1);
+      if (existingUsers.length === 0) {
+        delete msg.reactions[emoji];
+      } else {
+        msg.reactions[emoji] = existingUsers;
+      }
+    } else {
+      msg.reactions[emoji] = [...existingUsers, user.id];
+    }
+    dataStore.setMessages(allMsgs);
+    return { success: true, data: msg, meta: { timestamp: new Date().toISOString(), version: this.apiVersion } };
+  }
+
+  async getChatWallpaper(): Promise<ApiResponse<string>> {
+    let wp = 'default';
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        wp = localStorage.getItem('novea_chat_wallpaper') || 'default';
+      }
+    } catch {}
+    return { success: true, data: wp, meta: { timestamp: new Date().toISOString(), version: this.apiVersion } };
+  }
+
+  async setChatWallpaper(wallpaper: string): Promise<ApiResponse<string>> {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('novea_chat_wallpaper', wallpaper);
+      }
+    } catch {}
+    return { success: true, data: wallpaper, meta: { timestamp: new Date().toISOString(), version: this.apiVersion } };
   }
 
   // --- Notifications ---

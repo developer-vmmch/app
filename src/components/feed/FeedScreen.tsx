@@ -175,59 +175,6 @@ export const FeedScreen: React.FC<Props> = ({
         })}
       </div>
 
-      {/* 3. Compact Post Composer Input Card (Post, Photo/Video, Reel, Article) */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-3 sm:p-3.5 shadow-xs space-y-2.5">
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <Avatar
-            src={currentUser.avatarUrl}
-            name={currentUser.fullName}
-            id={currentUser.id}
-            size="md"
-          />
-          <button
-            onClick={() => onOpenComposer && onOpenComposer('case_discussion')}
-            className="flex-1 text-left bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] hover:text-[#0F172A] px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs font-medium border border-[#E2E8F0] transition-all shadow-2xs truncate cursor-pointer"
-          >
-            Share knowledge with the NOVA medical community…
-          </button>
-        </div>
-
-        {/* Shortcuts: Exactly 4 creation actions (Post, Photo/Video, Reel, Article) */}
-        <div className="grid grid-cols-4 gap-1 sm:gap-2 pt-2 border-t border-[#F1F5F9] text-xs font-semibold text-[#475569]">
-          <button
-            onClick={() => onOpenComposer && onOpenComposer('case_discussion')}
-            className="flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl hover:bg-[#F8FAFC] hover:text-[#1D4ED8] transition-colors cursor-pointer"
-          >
-            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#2563EB] shrink-0" />
-            <span className="text-[11px] sm:text-xs truncate">Post</span>
-          </button>
-
-          <button
-            onClick={() => onOpenComposer && onOpenComposer('case_discussion')}
-            className="flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl hover:bg-[#F8FAFC] hover:text-[#0D9488] transition-colors cursor-pointer"
-          >
-            <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0D9488] shrink-0" />
-            <span className="text-[11px] sm:text-xs truncate">Photo/Video</span>
-          </button>
-
-          <button
-            onClick={() => onOpenComposer && onOpenComposer('video')}
-            className="flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl hover:bg-[#F8FAFC] hover:text-[#7C3AED] transition-colors cursor-pointer"
-          >
-            <Film className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#7C3AED] shrink-0" />
-            <span className="text-[11px] sm:text-xs truncate">Reel</span>
-          </button>
-
-          <button
-            onClick={() => onOpenComposer && onOpenComposer('article')}
-            className="flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl hover:bg-[#F8FAFC] hover:text-[#0284C7] transition-colors cursor-pointer"
-          >
-            <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7] shrink-0" />
-            <span className="text-[11px] sm:text-xs truncate">Article</span>
-          </button>
-        </div>
-      </div>
-
       {/* 4. Social Feed Posts List */}
       <div className="space-y-3 sm:space-y-4">
         {loading ? (

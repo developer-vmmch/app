@@ -341,6 +341,7 @@ export interface Message {
     senderName: string;
     text: string;
   };
+  reactions?: Record<string, string[]>; // emoji -> array of userIds
 }
 
 export interface Conversation {
@@ -463,6 +464,7 @@ export interface CreatePostDTO {
   };
   mediaUrl?: string;
   mediaType?: 'image' | 'video';
+  videoDuration?: number;
   confirmedNoPatientPHI?: boolean;
 }
 

@@ -15,6 +15,7 @@ import {
   Save,
   Film,
   Image as ImageIcon,
+  Upload,
 } from 'lucide-react';
 import { PostType, CreatePostDTO } from '../../types';
 import { api } from '../../services/api';
@@ -109,6 +110,49 @@ export const PostComposerModal: React.FC<Props> = ({
     }
   };
 
+  // Video duration state for Reels (60-150s) and standard videos (<= 30 min)
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+
+  const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      setError('File size must be under 50MB.');
+      return;
+    }
+    setError(null);
+    const isVid = file.type.startsWith('video');
+    setMediaType(isVid ? 'video' : 'image');
+    if (isVid && postType !== 'video') {
+      setPostType('video');
+    }
+
+    if (isVid) {
+      const vid = document.createElement('video');
+      vid.preload = 'metadata';
+      vid.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(vid.src);
+        const dur = vid.duration;
+        setVideoDuration(dur);
+        const isReel = tags.includes('Reels') || postType === 'video';
+        if (isReel && (dur < 60 || dur > 150)) {
+          setError(`Reels must be strictly between 60 and 150 seconds (1 - 2.5 minutes). Selected video is ${Math.round(dur)} seconds.`);
+        } else if (!isReel && dur > 1800) {
+          setError(`Standard video posts cannot exceed 30 minutes. Selected video is ${Math.round(dur / 60)} minutes.`);
+        } else {
+          setError(null);
+        }
+      };
+      vid.src = URL.createObjectURL(file);
+      const url = URL.createObjectURL(file);
+      setMediaUrl(url);
+    } else {
+      setVideoDuration(null);
+      const url = URL.createObjectURL(file);
+      setMediaUrl(url);
+    }
+  };
+
   const handleAddTag = () => {
     const cleaned = tagInput.trim().replace(/^#/, '');
     if (cleaned && !tags.includes(cleaned)) {
@@ -161,6 +205,20 @@ export const PostComposerModal: React.FC<Props> = ({
       return;
     }
 
+    const isReel = tags.includes('Reels') || postType === 'video';
+    if (mediaType === 'video' && mediaUrl && videoDuration !== null) {
+      if (isReel && (videoDuration < 60 || videoDuration > 150)) {
+        setError(`Reels must be strictly between 60 and 150 seconds (1 - 2.5 minutes). Selected video duration is ${Math.round(videoDuration)} seconds.`);
+        setSubmitting(false);
+        return;
+      }
+      if (!isReel && videoDuration > 1800) {
+        setError(`Standard video posts cannot exceed 30 minutes. Selected video duration is ${Math.round(videoDuration / 60)} minutes.`);
+        setSubmitting(false);
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     const dto: CreatePostDTO = {
@@ -173,6 +231,7 @@ export const PostComposerModal: React.FC<Props> = ({
       mediaType: mediaUrl.trim()
         ? mediaType || (postType === 'video' ? 'video' : 'image')
         : undefined,
+      videoDuration: videoDuration !== null ? videoDuration : undefined,
       references: references.length > 0 ? references : undefined,
       poll:
         postType === 'poll' && pollQuestion.trim()
@@ -342,10 +401,23 @@ export const PostComposerModal: React.FC<Props> = ({
               </div>
 
               {/* Media Attachment (Photo / Video / Reel) */}
-              <div className="bg-white p-3.5 rounded-2xl border border-[#E2E8F0] space-y-2 shadow-2xs">
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#475569]">
-                  Media Attachment {postType === 'video' ? '(Video URL Required)' : '(Optional Imaging / Video)'}
-                </label>
+              <div className="bg-white p-3.5 rounded-2xl border border-[#E2E8F0] space-y-2.5 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#475569]">
+                    Media Attachment {postType === 'video' ? '(Video / Reel)' : '(Photo / Video)'}
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#1D4ED8] rounded-xl text-xs font-bold cursor-pointer transition-all border border-[#BFDBFE]">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload from Device</span>
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      onChange={handleLocalFileSelect}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
                 <div className="space-y-2">
                   <div className="flex gap-2">
                     <input
@@ -354,8 +426,8 @@ export const PostComposerModal: React.FC<Props> = ({
                       onChange={(e) => setMediaUrl(e.target.value)}
                       placeholder={
                         postType === 'video'
-                          ? 'Paste MP4 / Reel URL (e.g. https://.../sample.mp4)'
-                          : 'Paste image or video URL (https://...)'
+                          ? 'Paste MP4 / Reel URL or upload from device'
+                          : 'Paste image/video URL or upload from device'
                       }
                       className="flex-1 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2 text-xs text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#1D4ED8] focus:bg-white"
                     />
@@ -368,6 +440,26 @@ export const PostComposerModal: React.FC<Props> = ({
                       <option value="video">Video</option>
                     </select>
                   </div>
+
+                  {/* Media Preview Box if mediaUrl is present */}
+                  {mediaUrl && (
+                    <div className="relative rounded-xl overflow-hidden h-36 bg-black border border-[#CBD5E1] flex items-center justify-center">
+                      {mediaType === 'video' ? (
+                        <video src={mediaUrl} controls className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setMediaUrl('')}
+                        className="absolute top-2 right-2 p-1 rounded-full bg-black/70 text-white hover:bg-black"
+                        title="Remove media"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
                   {/* Quick Preset Clinical Media Chips */}
                   <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
                     <span className="text-[10px] text-[#64748B] font-semibold shrink-0">Sample Media:</span>

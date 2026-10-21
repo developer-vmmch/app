@@ -72,12 +72,13 @@ export const VerificationModal: React.FC<Props> = ({
     setSubmitting(true);
     const res = await api.submitDoctorVerification({
       doctorId: doctor.id,
-      fullName: doctor.fullName,
+      legalName: doctor.fullName,
+      country: doctor.country || 'India',
       registrationCouncil: council,
       medicalRegistrationNumber: regNumber.trim(),
       qualification: doctor.qualification || 'MBBS, MD',
       primarySpecialty: doctor.primarySpecialty || doctor.specialty || 'Internal Medicine',
-      idDocumentUrl: documentUploaded ? 'https://storage.amtnovanet.org/docs/tnmc-cert-scan.pdf' : undefined,
+      documentUrl: documentUploaded ? 'https://storage.amtnovanet.org/docs/tnmc-cert-scan.pdf' : undefined,
     });
     setSubmitting(false);
 
@@ -92,11 +93,17 @@ export const VerificationModal: React.FC<Props> = ({
 
     setSubmitting(true);
     const res = await api.submitOrganisationVerification({
+      applicantId: doctor.id,
+      type: 'HOSPITAL',
       orgName: orgName.trim(),
-      type: orgType,
-      registrationNumber: orgLicenseNumber.trim(),
-      accreditationBody: accreditation,
-      representativeDoctorId: doctor.id,
+      country: doctor.country || 'India',
+      physicalAddress: doctor.institution || 'Medical District',
+      contactEmail: doctor.email || 'contact@hospital.org',
+      contactPhone: doctor.mobileNumber || '+919876543210',
+      licenceNumber: orgLicenseNumber.trim(),
+      regAuthority: accreditation,
+      authorizedRepresentative: doctor.fullName,
+      representativeRole: 'Chief Medical Officer',
       documentUrl: 'https://storage.amtnovanet.org/docs/org-accreditation-cert.pdf',
     });
     setSubmitting(false);

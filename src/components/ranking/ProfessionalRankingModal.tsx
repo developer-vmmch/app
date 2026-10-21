@@ -175,13 +175,7 @@ export const ProfessionalRankingModal: React.FC<Props> = ({
                       </div>
 
                       <div className="flex items-center gap-2 text-[11px] text-[#64748B] mt-0.5 truncate">
-                        <span>{item.specialtyOrType}</span>
-                        {item.institution && (
-                          <>
-                            <span>•</span>
-                            <span className="truncate">{item.institution}</span>
-                          </>
-                        )}
+                        <span>{item.subtitle}</span>
                       </div>
 
                       {/* Badges Earned */}
@@ -218,7 +212,7 @@ export const ProfessionalRankingModal: React.FC<Props> = ({
                         <span>Profile</span>
                         <ExternalLink className="w-3 h-3" />
                       </button>
-                    ) : onOpenInstitutionDetail && (item.id.startsWith('inst-') || item.specialtyOrType.includes('Hospital')) ? (
+                    ) : onOpenInstitutionDetail && (item.id.startsWith('inst-') || item.subtitle.includes('Hospital')) ? (
                       <button
                         onClick={() => {
                           onClose();

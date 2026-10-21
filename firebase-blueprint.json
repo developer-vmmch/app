@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "Doctor": {
+      "title": "Doctor",
+      "description": "Doctor profile entity",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "specialty": { "type": "string" },
+        "verificationStatus": { "type": "string" }
+      },
+      "required": ["uid", "fullName", "email"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Clinical Knowledge Post / Article / Reel",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "postType": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["authorId", "body"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "24-hour story update",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "caption": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "expiresAt": { "type": "string" }
+      },
+      "required": ["authorId", "mediaUrl"]
+    }
+  },
+  "firestore": {
+    "/doctors/{doctorId}": {
+      "schema": "Doctor",
+      "description": "Doctor profiles"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Community posts and discussions"
+    },
+    "/stories/{storyId}": {
+      "schema": "Story",
+      "description": "Active user stories"
+    }
+  }
+}
