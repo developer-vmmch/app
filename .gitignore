@@ -1,0 +1,31 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+bun.lock
+
+# Build & Output Directories
+dist/
+build/
+.output/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+
+# IDE & Editor Files
+.idea/
+.gmp_cache/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini

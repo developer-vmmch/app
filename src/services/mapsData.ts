@@ -1,0 +1,247 @@
+export interface MedicalLocation {
+  id: string;
+  name: string;
+  type: 'doctor' | 'hospital' | 'clinic' | 'trauma_center';
+  lat: number;
+  lng: number;
+  address: string;
+  city: string;
+  state?: string;
+  country: string;
+  phone?: string;
+  specialty?: string;
+  doctorName?: string;
+  doctorId?: string;
+  doctorAvatar?: string;
+  verificationStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED';
+  isEmergencyAvailable?: boolean;
+  liveStatus?: 'online_clinic' | 'in_surgery' | 'on_call' | 'rounds';
+  rating?: number;
+  openHours?: string;
+  bedsCount?: number;
+  traumaLevel?: string;
+  distanceKm?: number;
+  liveRadiusKm?: number;
+}
+
+export const REGIONAL_CENTERS = [
+  { id: 'salem', name: 'Salem Medical Hub (VMMC Campus)', lat: 11.6643, lng: 78.1460, zoom: 13 },
+  { id: 'chennai', name: 'Chennai Medical Corridor (Apollo / MMC)', lat: 13.0604, lng: 80.2496, zoom: 13 },
+  { id: 'bangalore', name: 'Bangalore Health City (NIMHANS)', lat: 12.9352, lng: 77.5946, zoom: 13 },
+  { id: 'singapore', name: 'Singapore Outram Medical Campus (NHCS)', lat: 1.2798, lng: 103.8358, zoom: 14 },
+];
+
+export const INITIAL_MAP_LOCATIONS: MedicalLocation[] = [
+  // --- Salem Hub (Primary Campus) ---
+  {
+    id: 'med-loc-1',
+    name: "Vinayaka Mission's Medical College & Hospital",
+    type: 'hospital',
+    lat: 11.6643,
+    lng: 78.1460,
+    address: 'Sankari Main Road, Ariyanoor',
+    city: 'Salem',
+    state: 'Tamil Nadu',
+    country: 'India',
+    phone: '+91 427 398 7000',
+    specialty: 'Multi-Specialty & Academic Teaching Hospital',
+    isEmergencyAvailable: true,
+    traumaLevel: 'Level 1 Trauma & 24/7 Cardiac Catheterization Lab',
+    bedsCount: 850,
+    openHours: '24/7 Emergency Care',
+    rating: 4.8,
+    distanceKm: 0.1,
+  },
+  {
+    id: 'med-loc-2',
+    name: 'Dr. Alex Rivera - Bedside POCUS & Internal Medicine',
+    type: 'doctor',
+    doctorId: 'AMT-DOC-10024',
+    doctorName: 'Dr. Alex Rivera',
+    doctorAvatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&auto=format&fit=crop&q=80',
+    specialty: 'General Medicine',
+    lat: 11.6648,
+    lng: 78.1468,
+    address: 'Internal Medicine Department, Block B, VMMC Hospital',
+    city: 'Salem',
+    state: 'Tamil Nadu',
+    country: 'India',
+    phone: '+91 94432 10892',
+    verificationStatus: 'VERIFIED',
+    isEmergencyAvailable: true,
+    liveStatus: 'on_call',
+    openHours: 'Available for Urgent Bedside POCUS Consults',
+    rating: 4.9,
+    distanceKm: 0.2,
+    liveRadiusKm: 5,
+  },
+  {
+    id: 'med-loc-3',
+    name: 'Dr. K. Senthil Kumar - Interventional Cardiology Care',
+    type: 'doctor',
+    doctorId: 'AMT-DOC-11204',
+    doctorName: 'Dr. K. Senthil Kumar',
+    doctorAvatar: 'https://images.unsplash.com/photo-1622902046580-2b47f47f5471?w=300&auto=format&fit=crop&q=80',
+    specialty: 'Cardiology',
+    lat: 11.6580,
+    lng: 78.1520,
+    address: 'Cardiology Center of Excellence, VMMC Super Specialty Wing',
+    city: 'Salem',
+    state: 'Tamil Nadu',
+    country: 'India',
+    phone: '+91 98421 55678',
+    verificationStatus: 'VERIFIED',
+    isEmergencyAvailable: true,
+    liveStatus: 'online_clinic',
+    openHours: 'Cath Lab Active & Direct Tele-ECG Consults',
+    rating: 5.0,
+    distanceKm: 1.2,
+    liveRadiusKm: 10,
+  },
+  {
+    id: 'med-loc-4',
+    name: 'Salem Regional Cancer Institute & Oncology Unit',
+    type: 'hospital',
+    lat: 11.6700,
+    lng: 78.1380,
+    address: 'Fairlands Main Road, Alagapuram',
+    city: 'Salem',
+    state: 'Tamil Nadu',
+    country: 'India',
+    phone: '+91 427 244 5500',
+    specialty: 'Oncology',
+    isEmergencyAvailable: true,
+    traumaLevel: 'Comprehensive Oncology Emergency & Chemo Infusion Unit',
+    bedsCount: 320,
+    openHours: '24/7 Acute Oncology Support',
+    rating: 4.7,
+    distanceKm: 1.8,
+  },
+  {
+    id: 'med-loc-5',
+    name: 'Dr. Priya Sharma - Neonatal & Pediatric ICU',
+    type: 'doctor',
+    doctorId: 'AMT-DOC-09941',
+    doctorName: 'Dr. Priya Sharma',
+    doctorAvatar: 'https://images.unsplash.com/photo-1594824813593-14c11f7ca457?w=300&auto=format&fit=crop&q=80',
+    specialty: 'Pediatrics',
+    lat: 11.6480,
+    lng: 78.1610,
+    address: "Children's Critical Care Tower, Shevapet",
+    city: 'Salem',
+    state: 'Tamil Nadu',
+    country: 'India',
+    phone: '+91 97890 12345',
+    verificationStatus: 'VERIFIED',
+    isEmergencyAvailable: true,
+    liveStatus: 'on_call',
+    openHours: '24/7 NICU Transport & Emergency Consultation',
+    rating: 4.9,
+    distanceKm: 2.5,
+    liveRadiusKm: 15,
+  },
+  {
+    id: 'med-loc-6',
+    name: 'Dr. Marcus Vance - Comprehensive Stroke Center',
+    type: 'doctor',
+    doctorId: 'AMT-DOC-15021',
+    doctorName: 'Dr. Marcus Vance',
+    doctorAvatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=300&auto=format&fit=crop&q=80',
+    specialty: 'Neurology',
+    lat: 11.6780,
+    lng: 78.1550,
+    address: 'Neuroscience Clinic, Meyyanur Bypass Road',
+    city: 'Salem',
+    state: 'Tamil Nadu',
+    country: 'India',
+    phone: '+91 96555 43210',
+    verificationStatus: 'VERIFIED',
+    isEmergencyAvailable: true,
+    liveStatus: 'rounds',
+    openHours: 'Acute Stroke Code Team Lead',
+    rating: 4.8,
+    distanceKm: 2.9,
+    liveRadiusKm: 8,
+  },
+  {
+    id: 'med-loc-7',
+    name: 'Manipal Hospital Salem Emergency Center',
+    type: 'trauma_center',
+    lat: 11.6820,
+    lng: 78.1250,
+    address: 'Dalmia Board, Bangalore Highway',
+    city: 'Salem',
+    state: 'Tamil Nadu',
+    country: 'India',
+    phone: '+91 427 234 6666',
+    specialty: 'Emergency Medicine & Multi-Organ Trauma',
+    isEmergencyAvailable: true,
+    traumaLevel: 'Level 1 Trauma, Stroke & STEMI Emergency Response',
+    bedsCount: 450,
+    openHours: '24/7 Emergency & Critical Care',
+    rating: 4.9,
+    distanceKm: 3.4,
+  },
+
+  // --- Chennai Medical Corridor ---
+  {
+    id: 'med-loc-8',
+    name: "Apollo Children's Hospital & Emergency Triage",
+    type: 'hospital',
+    lat: 13.0604,
+    lng: 80.2496,
+    address: 'Thousand Lights, Greams Road',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
+    country: 'India',
+    phone: '+91 44 2829 0200',
+    specialty: 'Pediatrics & Pediatric Surgery',
+    isEmergencyAvailable: true,
+    traumaLevel: 'Pediatric Emergency & Level 3 NICU/PICU',
+    bedsCount: 220,
+    openHours: '24/7 Pediatric Emergency',
+    rating: 4.9,
+    distanceKm: 310,
+  },
+
+  // --- Bangalore Hub ---
+  {
+    id: 'med-loc-9',
+    name: 'NIMHANS Super Specialty Neuro Trauma Center',
+    type: 'trauma_center',
+    lat: 12.9352,
+    lng: 77.5946,
+    address: 'Hosur Road, Wilson Garden',
+    city: 'Bangalore',
+    state: 'Karnataka',
+    country: 'India',
+    phone: '+91 80 2699 5000',
+    specialty: 'Neurology & Neurosurgery',
+    isEmergencyAvailable: true,
+    traumaLevel: 'National Neurotrauma & Stroke Command Center',
+    bedsCount: 650,
+    openHours: '24/7 Emergency Neuro Care',
+    rating: 4.9,
+    distanceKm: 180,
+  },
+
+  // --- Singapore Hub ---
+  {
+    id: 'med-loc-10',
+    name: 'National Heart Centre Singapore (NHCS)',
+    type: 'hospital',
+    lat: 1.2798,
+    lng: 103.8358,
+    address: '5 Hospital Drive, Outram',
+    city: 'Singapore',
+    country: 'Singapore',
+    phone: '+65 6704 8000',
+    specialty: 'Cardiology',
+    isEmergencyAvailable: true,
+    traumaLevel: 'Acute Coronary Syndrome & Structural Heart Emergency',
+    bedsCount: 185,
+    openHours: '24/7 Cardiac Emergency Unit',
+    rating: 4.9,
+    distanceKm: 3100,
+  },
+];

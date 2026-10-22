@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Doctor Knowledge Network</string>
+    <string name="company_name">AMT Tech Nova</string>
+    <string name="brand_name">AMT</string>
+    <string name="onboarding_headline">Connect with verified medical professionals and learn from their experience.</string>
+</resources>
