@@ -34,6 +34,7 @@ import { LogoSettingsModal } from './components/branding/LogoSettingsModal';
 import { AnimatedLaunchScreen } from './components/launch/AnimatedLaunchScreen';
 import { ProfessionalRankingModal } from './components/ranking/ProfessionalRankingModal';
 import { CreateMenuModal } from './components/composer/CreateMenuModal';
+import { INITIAL_PROFILES } from './services/mockData';
 
 export default function App() {
   const [productName, setProductName] = useState('Doctor Knowledge Network');
@@ -104,16 +105,28 @@ export default function App() {
   };
 
   const loadAppInitialState = async () => {
-    const [userRes, storiesRes] = await Promise.all([
-      api.getCurrentUser(),
-      api.getActiveStories(),
-    ]);
+    try {
+      const [userRes, storiesRes] = await Promise.all([
+        api.getCurrentUser(),
+        api.getActiveStories(),
+      ]);
 
-    if (userRes.success) {
-      setCurrentDoctor(userRes.data);
-      await checkUserConsentStatus(userRes.data);
+      if (userRes.success && userRes.data && userRes.data.id) {
+        setCurrentDoctor(userRes.data);
+        await checkUserConsentStatus(userRes.data);
+      } else {
+        const fallbackUser = INITIAL_PROFILES[0];
+        setCurrentDoctor(fallbackUser);
+        await checkUserConsentStatus(fallbackUser);
+      }
+
+      if (storiesRes.success && storiesRes.data) {
+        setStories(storiesRes.data);
+      }
+    } catch (err) {
+      console.warn('Initial state load error:', err);
+      setCurrentDoctor(INITIAL_PROFILES[0]);
     }
-    if (storiesRes.success) setStories(storiesRes.data);
   };
 
   const handleAcceptPhiPolicy = async () => {
@@ -213,6 +226,16 @@ export default function App() {
             <span>Connecting to verified medical network...</span>
           </div>
         </div>
+        {/* Render Auth Modal so sign in or registration is always available */}
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+          onUserChanged={async (user) => {
+            setCurrentDoctor(user);
+            setViewDoctorId(undefined);
+            await checkUserConsentStatus(user);
+          }}
+        />
       </div>
     );
   }

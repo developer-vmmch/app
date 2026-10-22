@@ -4,18 +4,13 @@ import {
   MessageSquare,
   Bookmark,
   Share2,
-  AlertCircle,
-  ExternalLink,
-  CheckCircle2,
-  MoreVertical,
   Flag,
-  HelpCircle,
-  Vote,
-  FileText,
+  MoreVertical,
   Stethoscope,
   Building2,
-  Check,
-  Play,
+  ExternalLink,
+  CheckCircle2,
+  HelpCircle,
 } from 'lucide-react';
 import { Post } from '../../types';
 import { VerificationBadge } from '../common/VerificationBadge';
@@ -47,7 +42,24 @@ export const PostCard: React.FC<Props> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const formatTimestamp = (dateStr: string) => {
+  // Safe Fallback Accessors preventing runtime TypeErrors
+  const authorId = post.author?.id || (post as any).authorId || 'AMT-DOC-10024';
+  const authorName = post.author?.fullName || (post as any).authorName || 'Dr. Medical Professional';
+  const authorAvatarUrl =
+    post.author?.avatarUrl ||
+    (post as any).authorAvatarUrl ||
+    'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=300&auto=format&fit=crop&q=80';
+  const authorSpecialty = post.author?.specialty || (post as any).authorSpecialty || 'Specialist';
+  const authorVerificationStatus =
+    post.author?.verificationStatus || (post as any).authorVerificationStatus || 'VERIFIED';
+
+  const postTypeLabel = (post.postType || 'case_discussion').replace(/_/g, ' ');
+  const tagsList = post.tags || [];
+  const likesCount = post.likesCount ?? 0;
+  const commentsCount = post.commentsCount ?? 0;
+
+  const formatTimestamp = (dateStr?: string) => {
+    if (!dateStr) return 'Recently';
     try {
       const date = new Date(dateStr);
       const now = new Date();
@@ -56,6 +68,7 @@ export const PostCard: React.FC<Props> = ({
       const diffHours = Math.floor(diffMins / 60);
       const diffDays = Math.floor(diffHours / 24);
 
+      if (isNaN(date.getTime())) return 'Recently';
       if (diffMins < 60) return `${Math.max(1, diffMins)} min ago`;
       if (diffHours < 24) return `${diffHours} hr ago`;
       if (diffDays === 1) return 'Yesterday';
@@ -73,33 +86,31 @@ export const PostCard: React.FC<Props> = ({
 
   return (
     <article className="bg-white border border-[#E5EDF5] rounded-2xl p-4 sm:p-5 shadow-2xs hover:border-[#1D4ED8]/30 transition-all space-y-3.5">
-      {/* =========================================================================
-          HEADER: Author Avatar (44px circle), Name, Title & Timestamp
-          ========================================================================= */}
+      {/* HEADER: Author Avatar, Name, Title & Timestamp */}
       <div className="flex items-start justify-between gap-3">
         <button
-          onClick={() => onOpenAuthorProfile(post.author.id)}
-          className="flex items-center gap-3 text-left group min-w-0"
+          onClick={() => onOpenAuthorProfile(authorId)}
+          className="flex items-center gap-3 text-left group min-w-0 cursor-pointer"
         >
           {/* Avatar with Initials Fallback */}
           <Avatar
-            src={post.author.avatarUrl}
-            name={post.author.fullName}
-            id={post.author.id}
+            src={authorAvatarUrl}
+            name={authorName}
+            id={authorId}
             size="md"
-            verificationStatus={post.author.verificationStatus}
+            verificationStatus={authorVerificationStatus}
             showBadge
           />
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-sm font-bold text-[#0F1E36] group-hover:text-[#1D4ED8] transition-colors truncate">
-                {post.author.fullName}
+                {authorName}
               </span>
-              <VerificationBadge status={post.author.verificationStatus} showText={false} />
+              <VerificationBadge status={authorVerificationStatus} showText={false} />
             </div>
             <p className="text-xs text-[#5A6B82] leading-tight truncate">
-              {post.author.specialty}
+              {authorSpecialty}
             </p>
             <p className="text-[11px] text-[#7A8B9E] leading-tight mt-0.5">
               {formatTimestamp(post.createdAt)}
@@ -110,12 +121,12 @@ export const PostCard: React.FC<Props> = ({
         {/* Post Type Badge & Options Menu */}
         <div className="flex items-center gap-1.5 relative shrink-0">
           <span className="text-[11px] font-semibold text-[#1D4ED8] bg-[#EFF6FF] px-2.5 py-1 rounded-full capitalize">
-            {post.postType.replace('_', ' ')}
+            {postTypeLabel}
           </span>
 
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="p-1 rounded-lg text-[#7A8B9E] hover:text-[#0F1E36] hover:bg-[#F4F7FB] transition-colors"
+            className="p-1 rounded-lg text-[#7A8B9E] hover:text-[#0F1E36] hover:bg-[#F4F7FB] transition-colors cursor-pointer"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
@@ -127,7 +138,7 @@ export const PostCard: React.FC<Props> = ({
                   setMenuOpen(false);
                   onReport(post);
                 }}
-                className="w-full text-left px-3.5 py-2 text-[#DC2626] hover:bg-red-50 flex items-center gap-2"
+                className="w-full text-left px-3.5 py-2 text-[#DC2626] hover:bg-red-50 flex items-center gap-2 cursor-pointer"
               >
                 <Flag className="w-3.5 h-3.5" />
                 <span>Report Content</span>
@@ -135,9 +146,9 @@ export const PostCard: React.FC<Props> = ({
               <button
                 onClick={() => {
                   setMenuOpen(false);
-                  onOpenAuthorProfile(post.author.id);
+                  onOpenAuthorProfile(authorId);
                 }}
-                className="w-full text-left px-3.5 py-2 text-[#0F1E36] hover:bg-[#F4F7FB] flex items-center gap-2"
+                className="w-full text-left px-3.5 py-2 text-[#0F1E36] hover:bg-[#F4F7FB] flex items-center gap-2 cursor-pointer"
               >
                 <Stethoscope className="w-3.5 h-3.5 text-[#1D4ED8]" />
                 <span>Doctor Profile</span>
@@ -216,7 +227,7 @@ export const PostCard: React.FC<Props> = ({
                   key={option.id}
                   disabled={hasVotedAny}
                   onClick={() => onVote(post.id, option.id)}
-                  className={`w-full text-left text-xs p-3 rounded-xl relative overflow-hidden border transition-all ${
+                  className={`w-full text-left text-xs p-3 rounded-xl relative overflow-hidden border transition-all cursor-pointer ${
                     isVoted
                       ? 'border-[#1D4ED8] bg-[#EFF6FF] font-bold text-[#1D4ED8]'
                       : hasVotedAny
@@ -272,11 +283,11 @@ export const PostCard: React.FC<Props> = ({
       {/* Tags and Zero-PHI Check */}
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#E5EDF5] text-xs">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {post.tags.map((tag) => (
+          {tagsList.map((tag) => (
             <button
               key={tag}
               onClick={() => onSelectTag && onSelectTag(tag)}
-              className="text-[#1D4ED8] hover:text-[#1E40AF] font-bold text-[11px] bg-[#EFF6FF] px-2 py-0.5 rounded-md hover:bg-[#DBEAFE] transition-colors"
+              className="text-[#1D4ED8] hover:text-[#1E40AF] font-bold text-[11px] bg-[#EFF6FF] px-2 py-0.5 rounded-md hover:bg-[#DBEAFE] transition-colors cursor-pointer"
             >
               #{tag}
             </button>
@@ -291,34 +302,34 @@ export const PostCard: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Actions Row (Consistent horizontal row matching reference screenshot) */}
+      {/* Actions Row */}
       <div className="flex items-center justify-between pt-2.5 border-t border-[#E5EDF5] text-xs text-[#5A6B82]">
         {/* Like */}
         <button
           onClick={() => onLike(post.id)}
-          className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl transition-all ${
+          className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${
             post.isLiked
               ? 'text-[#DC2626] bg-[#FEF2F2] font-bold'
               : 'hover:text-[#0F1E36] hover:bg-[#F4F7FB]'
           }`}
         >
           <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-[#DC2626] text-[#DC2626]' : ''}`} />
-          <span>{post.likesCount} {post.likesCount === 1 ? 'like' : 'likes'}</span>
+          <span>{likesCount} {likesCount === 1 ? 'like' : 'likes'}</span>
         </button>
 
         {/* Comment */}
         <button
           onClick={() => onOpenComments(post)}
-          className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl hover:text-[#0F1E36] hover:bg-[#F4F7FB] transition-all"
+          className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl hover:text-[#0F1E36] hover:bg-[#F4F7FB] transition-all cursor-pointer"
         >
           <MessageSquare className="w-4 h-4" />
-          <span>{post.commentsCount} Comments</span>
+          <span>{commentsCount} Comments</span>
         </button>
 
         {/* Save */}
         <button
           onClick={() => onBookmark(post.id)}
-          className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl transition-all ${
+          className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${
             post.isBookmarked
               ? 'text-[#1D4ED8] bg-[#EFF6FF] font-bold'
               : 'hover:text-[#0F1E36] hover:bg-[#F4F7FB]'
@@ -331,7 +342,7 @@ export const PostCard: React.FC<Props> = ({
         {/* Share */}
         <button
           onClick={handleShare}
-          className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl hover:text-[#0F1E36] hover:bg-[#F4F7FB] transition-all relative"
+          className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl hover:text-[#0F1E36] hover:bg-[#F4F7FB] transition-all relative cursor-pointer"
         >
           <Share2 className="w-4 h-4" />
           <span>Share</span>
