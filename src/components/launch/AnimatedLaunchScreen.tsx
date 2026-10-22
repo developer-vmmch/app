@@ -74,10 +74,22 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
   const letters = ['N', 'O', 'V', 'E', 'A'];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-radial-[at_50%_40%] from-[#0E1E38] via-[#081122] to-[#040812] text-white overflow-hidden select-none px-4 py-8 sm:py-12">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-between text-white overflow-hidden select-none px-4 py-8 sm:py-12">
+      {/* Background AI Medical Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-45 z-0"
+        src="./assets/videos/launch-bg.mp4"
+      />
+      {/* Dark Gradient Overlay for Maximum Legibility */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0E1E38]/85 via-[#081122]/90 to-[#040812]/95 z-0 pointer-events-none" />
+
       {/* Subtle Background Glow Effect */}
       <div
-        className={`absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-linear-to-tr from-[#1D4ED8]/20 via-[#0D9488]/20 to-transparent blur-3xl pointer-events-none transition-opacity duration-1000 ${
+        className={`absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-linear-to-tr from-[#1D4ED8]/20 via-[#0D9488]/20 to-transparent blur-3xl pointer-events-none transition-opacity duration-1000 z-10 ${
           animStep >= 4 ? 'opacity-100 scale-110' : 'opacity-30 scale-90'
         }`}
       />
