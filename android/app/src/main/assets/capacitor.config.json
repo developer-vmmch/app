@@ -1,0 +1,21 @@
+{
+	"appId": "com.novea.medical",
+	"appName": "NOVEA",
+	"webDir": "dist",
+	"bundledWebRuntime": false,
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"launchAutoHide": true,
+			"backgroundColor": "#070B18",
+			"androidSplashResourceName": "splash",
+			"androidScaleType": "CENTER_CROP",
+			"showSpinner": true,
+			"spinnerColor": "#1D4ED8"
+		},
+		"StatusBar": {
+			"style": "DARK",
+			"backgroundColor": "#070B18"
+		}
+	}
+}
