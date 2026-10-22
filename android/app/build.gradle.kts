@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.amt.doctorknowledge"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.amt.doctorknowledge"
@@ -32,14 +32,14 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "21"
     }
     kotlin {
-        jvmToolchain(17)
+        jvmToolchain(21)
     }
     buildFeatures {
         compose = true
@@ -47,8 +47,15 @@ android {
 }
 
 dependencies {
+    // Capacitor Dependencies
+    implementation(project(":capacitor-android"))
+    implementation(project(":capacitor-keyboard"))
+    implementation(project(":capacitor-splash-screen"))
+    implementation(project(":capacitor-status-bar"))
+
     // AndroidX & Core
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.activity:activity-compose:1.9.3")
 
