@@ -218,7 +218,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
+    <div className="h-full min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
       {/* Top Header: Left Profile Avatar, Center Rotating NOVEA Logo, Right Actions */}
       <TopHeader
         currentDoctor={currentDoctor}
