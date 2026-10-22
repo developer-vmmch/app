@@ -113,7 +113,37 @@ export const PostComposerModal: React.FC<Props> = ({
   // Video duration state for Reels (60-150s) and standard videos (<= 30 min)
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
 
-  const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImageFile = (file: File, maxWidth = 1200, quality = 0.85): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleLocalFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) {
@@ -144,12 +174,16 @@ export const PostComposerModal: React.FC<Props> = ({
         }
       };
       vid.src = URL.createObjectURL(file);
-      const url = URL.createObjectURL(file);
-      setMediaUrl(url);
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) setMediaUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     } else {
       setVideoDuration(null);
-      const url = URL.createObjectURL(file);
-      setMediaUrl(url);
+      const dataUrl = await compressImageFile(file);
+      setMediaUrl(dataUrl);
     }
   };
 
