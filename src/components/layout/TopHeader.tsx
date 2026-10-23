@@ -44,6 +44,7 @@ interface Props {
   onOpenRankings?: () => void;
   onReplayLaunch?: () => void;
   onOpenCreate?: () => void;
+  onOpenSubscription?: () => void;
 }
 
 export const TopHeader: React.FC<Props> = ({
@@ -270,6 +271,25 @@ export const TopHeader: React.FC<Props> = ({
                     </span>
                   </div>
                 </button>
+
+                {onOpenSubscription && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onOpenSubscription();
+                    }}
+                    className="w-full px-3.5 py-2 flex items-center gap-2.5 text-[#0F172A] hover:bg-[#F8FAFC] hover:text-[#1D4ED8] transition-colors text-left"
+                  >
+                    <Sparkles className="w-4 h-4 text-[#8B5CF6]" />
+                    <div>
+                      <span className="font-semibold block">Subscription & Usage Quotas</span>
+                      <span className="text-[10px] text-[#64748B]">
+                        Monthly messaging & voice/video limits
+                      </span>
+                    </div>
+                  </button>
+                )}
 
                 {onOpenRankings && (
                   <button

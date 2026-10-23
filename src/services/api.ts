@@ -1425,14 +1425,38 @@ class ApiClient {
 
   // --- Chat & Messages ---
   async getConversations(): Promise<ApiResponse<Conversation[]>> {
-    const convs = dataStore.getConversations();
-    return { success: true, data: convs, meta: { total: convs.length, timestamp: new Date().toISOString(), version: this.apiVersion } };
+    const allConvs = dataStore.getConversations();
+    const blocked = dataStore.getReports().map((r) => r.targetId).filter(Boolean);
+    // Strict Authorization & Filtering for Current User
+    const userConvs = allConvs.filter(
+      (c) =>
+        (c.participantIds ? c.participantIds.includes(this.currentUserId) : true) &&
+        !blocked.includes(c.participant.id)
+    );
+    return { success: true, data: userConvs, meta: { total: userConvs.length, timestamp: new Date().toISOString(), version: this.apiVersion } };
   }
 
-  async getMessages(conversationId: string): Promise<ApiResponse<Message[]>> {
+  async getMessages(conversationId: string, page = 1, limit = 30): Promise<ApiResponse<Message[]>> {
     const msgs = dataStore.getMessages();
     const list = msgs[conversationId] || [];
-    return { success: true, data: list, meta: { total: list.length, timestamp: new Date().toISOString(), version: this.apiVersion } };
+    // Mark delivered/read for recipient
+    let updated = false;
+    list.forEach((m) => {
+      if (m.senderId !== this.currentUserId && m.status !== 'read') {
+        m.status = 'read';
+        updated = true;
+      }
+    });
+    if (updated) {
+      msgs[conversationId] = list;
+      dataStore.setMessages(msgs);
+    }
+
+    // Pagination from end of list
+    const startIndex = Math.max(0, list.length - page * limit);
+    const paginated = list.slice(startIndex, list.length);
+
+    return { success: true, data: paginated, meta: { total: list.length, page, limit, timestamp: new Date().toISOString(), version: this.apiVersion } };
   }
 
   async sendMessage(dto: SendMessageDTO): Promise<ApiResponse<Message>> {
@@ -1463,7 +1487,37 @@ class ApiClient {
       dataStore.setConversations(convs);
     }
 
+    // Broadcast Real-time Event
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('novea_chat_message', { detail: { message: newMsg } }));
+      }
+    } catch {}
+
+    // Dynamic Delivery Status Update Simulation
+    setTimeout(() => {
+      newMsg.status = 'delivered';
+      dataStore.setMessages(allMsgs);
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('novea_chat_status', { detail: { messageId: newMsg.id, status: 'delivered' } }));
+        }
+      } catch {}
+    }, 1200);
+
     return { success: true, data: newMsg, meta: { timestamp: new Date().toISOString(), version: this.apiVersion } };
+  }
+
+  async blockUser(targetUserId: string, reason = 'User Blocked'): Promise<ApiResponse<{ success: boolean }>> {
+    dataStore.addReport({
+      id: `report-${Date.now()}`,
+      reporterId: this.currentUserId,
+      targetId: targetUserId,
+      reason,
+      status: 'SUBMITTED',
+      createdAt: new Date().toISOString(),
+    });
+    return { success: true, data: { success: true }, meta: { timestamp: new Date().toISOString(), version: this.apiVersion } };
   }
 
   async addMessageReaction(conversationId: string, messageId: string, emoji: string): Promise<ApiResponse<Message>> {

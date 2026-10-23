@@ -35,6 +35,7 @@ import { AnimatedLaunchScreen } from './components/launch/AnimatedLaunchScreen';
 import { ProfessionalRankingModal } from './components/ranking/ProfessionalRankingModal';
 import { CreateMenuModal } from './components/composer/CreateMenuModal';
 import { INITIAL_PROFILES } from './services/mockData';
+import { SubscriptionModal } from './components/subscription/SubscriptionModal';
 
 export default function App() {
   const [productName, setProductName] = useState('Doctor Knowledge Network');
@@ -72,6 +73,7 @@ export default function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [isLogoSettingsOpen, setIsLogoSettingsOpen] = useState(false);
   const [isRankingOpen, setIsRankingOpen] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
@@ -272,6 +274,7 @@ export default function App() {
         onOpenMap={() => setIsMapModalOpen(true)}
         onOpenLogoSettings={() => setIsLogoSettingsOpen(true)}
         onOpenRankings={() => setIsRankingOpen(true)}
+        onOpenSubscription={() => setIsSubscriptionOpen(true)}
         onReplayLaunch={() => setIsLaunchScreenActive(true)}
         onOpenCreate={() => setIsCreateMenuOpen(true)}
       />
@@ -557,6 +560,15 @@ export default function App() {
           setIsComposerOpen(true);
         }}
       />
+
+      {/* Subscription & Usage Quota Management Modal */}
+      {currentDoctor && (
+        <SubscriptionModal
+          isOpen={isSubscriptionOpen}
+          currentUser={currentDoctor}
+          onClose={() => setIsSubscriptionOpen(false)}
+        />
+      )}
     </div>
   );
 }

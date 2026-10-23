@@ -149,6 +149,42 @@ export const ChatModal: React.FC<Props> = ({
     }
   }, [messages.length, activeConv]);
 
+  // Real-time Chat Event Listener
+  useEffect(() => {
+    const handleRealtimeMessage = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: Message }>;
+      if (customEvent.detail && customEvent.detail.message) {
+        const msg = customEvent.detail.message;
+        if (activeConv && msg.conversationId === activeConv.id) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+          scrollToBottom();
+        }
+        loadInbox();
+      }
+    };
+
+    const handleRealtimeStatus = (e: Event) => {
+      const customEvent = e as CustomEvent<{ messageId: string; status: Message['status'] }>;
+      if (customEvent.detail) {
+        const { messageId, status } = customEvent.detail;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, status } : m))
+        );
+      }
+    };
+
+    window.addEventListener('novea_chat_message', handleRealtimeMessage);
+    window.addEventListener('novea_chat_status', handleRealtimeStatus);
+
+    return () => {
+      window.removeEventListener('novea_chat_message', handleRealtimeMessage);
+      window.removeEventListener('novea_chat_status', handleRealtimeStatus);
+    };
+  }, [activeConv]);
+
   // Handle message submission
   const handleSendMessage = async (
     e?: React.FormEvent,
