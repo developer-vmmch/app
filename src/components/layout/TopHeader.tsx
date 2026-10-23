@@ -372,21 +372,24 @@ export const TopHeader: React.FC<Props> = ({
         </div>
 
         {/* =========================================================================
-            CENTER SECTION: Perfectly Centered NOVEA Official Logo (36 Concepts)
-            - 10-minute auto-rotation across the 36 official logo concepts
-            - Stable dimensions (w-[155px] sm:w-[175px] h-9) prevents any layout shift
-            - No old stethoscope icon in separate colored square
-            - High visual quality vector SVG
+            CENTER SECTION: Perfectly Centered DoctoHub Logo (Powered by NOVEA)
+            - Official DoctoHub Medical Network Logo & Wordmark
+            - Secondary tagline: "Powered by NOVEA"
             ========================================================================= */}
         <button
           onClick={() => onSelectTab && onSelectTab('home')}
-          className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center cursor-pointer select-none group focus:outline-none py-1 h-9 w-[155px] sm:w-[175px]"
-          title={`NOVEA — ${activeLogo.name} (Concept #${activeLogo.id})`}
-          aria-label={`NOVEA Home — ${activeLogo.name}`}
+          className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center cursor-pointer select-none group focus:outline-none py-0.5 h-10 w-[165px] sm:w-[185px]"
+          title="DoctoHub — Powered by NOVEA Medical Network"
+          aria-label="DoctoHub Home — Powered by NOVEA"
         >
-          {activeLogo.renderLogo({
-            className: 'h-7 sm:h-8 w-auto max-w-full drop-shadow-2xs group-hover:opacity-90 transition-opacity',
-          })}
+          <div className="flex items-center gap-1.5 h-6">
+            {activeLogo.renderLogo({
+              className: 'h-6 sm:h-7 w-auto max-w-full drop-shadow-2xs group-hover:opacity-90 transition-opacity',
+            })}
+          </div>
+          <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#0D9488] leading-none mt-0.5">
+            Powered by NOVEA
+          </span>
         </button>
 
         {/* =========================================================================

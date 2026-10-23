@@ -38,7 +38,7 @@ import { INITIAL_PROFILES } from './services/mockData';
 import { SubscriptionModal } from './components/subscription/SubscriptionModal';
 
 export default function App() {
-  const [productName, setProductName] = useState('Doctor Knowledge Network');
+  const [productName, setProductName] = useState('DoctoHub — Powered by NOVEA');
   const [activeTab, setActiveTab] = useState<string>('home');
   const [feedFilter, setFeedFilter] = useState<string>('all');
   const [currentDoctor, setCurrentDoctor] = useState<DoctorProfile | null>(null);

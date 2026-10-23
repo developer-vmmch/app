@@ -1,6 +1,6 @@
 {
 	"appId": "com.novea.medical",
-	"appName": "NOVEA",
+	"appName": "DoctoHub",
 	"webDir": "dist",
 	"bundledWebRuntime": false,
 	"plugins": {

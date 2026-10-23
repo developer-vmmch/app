@@ -6,6 +6,7 @@ import {
   Lock,
   UserCheck,
   Stethoscope,
+  SkipForward,
 } from 'lucide-react';
 import { DoctorProfile } from '../../types';
 import { useNoveaLogo } from '../branding/useNoveaLogo';
@@ -27,7 +28,7 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
   const { activeLogo } = useNoveaLogo();
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Animation sequence states: 0: Init, 1: Logo Fade, 2: Letters Reveal, 3: Medical Arc, 4: Teal Highlight, 5: Ready
+  // Animation sequence states: 0: Init, 1: Logo Fade, 2: Letters Reveal, 3: Medical Arc, 4: Highlight, 5: Ready
   const [animStep, setAnimStep] = useState<number>(0);
   const [isFinishedIntro, setIsFinishedIntro] = useState<boolean>(false);
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
@@ -75,21 +76,29 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
     };
   }, []);
 
-  const letters = ['N', 'O', 'V', 'E', 'A'];
+  const handleVideoEnded = () => {
+    if (currentDoctor) {
+      onEnterApp();
+    } else {
+      setIsFinishedIntro(true);
+    }
+  };
+
+  const letters = ['D', 'O', 'C', 'T', 'O', 'H', 'U', 'B'];
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-between text-white overflow-hidden select-none px-4 py-8 sm:py-12 bg-[#040812]">
-      {/* Background AI Medical Video */}
+      {/* Background Intro Video */}
       <video
         ref={videoRef}
         autoPlay
-        loop
         muted
         playsInline
         preload="auto"
         onCanPlay={() => setVideoLoaded(true)}
         onError={() => setVideoLoaded(false)}
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-40 z-0"
+        onEnded={handleVideoEnded}
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-45 z-0"
         src="./assets/videos/launch-bg.mp4"
       />
 
@@ -103,23 +112,36 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
         }`}
       />
 
-      {/* Top Branding Pill */}
+      {/* Top Branding Pill & Skip Button */}
       <div
-        className={`relative z-20 transition-all duration-700 ${
+        className={`w-full max-w-md flex items-center justify-between relative z-30 transition-all duration-700 ${
           animStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
         }`}
       >
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-[11px] font-semibold tracking-wider uppercase text-[#94A3B8]">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-[11px] font-semibold tracking-wider uppercase text-[#94A3B8]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6] animate-pulse" />
-          <span>Verified Medical Professional Network</span>
+          <span>Verified Medical Network</span>
         </div>
+
+        <button
+          onClick={() => {
+            if (currentDoctor) {
+              onEnterApp();
+            } else {
+              onOpenAuth('signin');
+            }
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md text-xs font-bold text-white transition-all active:scale-95 cursor-pointer"
+        >
+          <span>Skip</span>
+          <SkipForward className="w-3.5 h-3.5 text-[#38BDF8]" />
+        </button>
       </div>
 
-      {/* Center Stage: NOVEA Active Logo + Staggered Letters + Medical Arc */}
+      {/* Center Stage: DoctoHub Active Logo + Wordmark + Powered by NOVEA */}
       <div className="flex flex-col items-center justify-center my-auto w-full max-w-md text-center relative z-20">
-        {/* Medical-inspired Circular Arc & Pulse around Logo */}
+        {/* Circular Arc & Pulse around Logo */}
         <div className="relative mb-6 flex items-center justify-center">
-          {/* Animated SVG Medical Line / Arc */}
           <svg
             className={`w-36 h-36 sm:w-44 sm:h-44 absolute pointer-events-none transition-all duration-1000 ${
               animStep >= 3 ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'
@@ -158,7 +180,7 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
             )}
           </svg>
 
-          {/* Active NOVEA Logo Centerpiece */}
+          {/* Active DoctoHub Logo Centerpiece */}
           <div
             className={`relative z-10 w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-b from-white/15 to-white/5 border border-white/20 backdrop-blur-xl p-4 flex items-center justify-center shadow-2xl transition-all duration-700 ${
               animStep >= 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
@@ -170,21 +192,21 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Staggered NOVEA Wordmark Letters */}
-        <div className="flex items-center justify-center gap-1.5 sm:gap-2 mb-3">
+        {/* Staggered DoctoHub Wordmark Letters */}
+        <div className="flex items-center justify-center gap-1 sm:gap-1.5 mb-2">
           {letters.map((letter, index) => {
             const isVisible = animStep >= 2;
-            const delayMs = index * 80;
+            const delayMs = index * 60;
             return (
               <span
                 key={index}
                 style={{
                   transitionDelay: `${delayMs}ms`,
                 }}
-                className={`text-4xl sm:text-5xl font-extrabold tracking-tight transition-all duration-500 font-sans ${
+                className={`text-3xl sm:text-4xl font-extrabold tracking-tight transition-all duration-500 font-sans ${
                   isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-90'
                 } ${
-                  index === 2
+                  index >= 5
                     ? 'text-transparent bg-clip-text bg-gradient-to-r from-[#38BDF8] to-[#14B8A6]'
                     : 'text-white'
                 }`}
@@ -195,25 +217,24 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
           })}
         </div>
 
+        {/* Secondary Branding: Powered by NOVEA */}
+        <div
+          className={`inline-flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase text-[#38BDF8] mb-3 transition-all duration-700 ${
+            animStep >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          }`}
+        >
+          <span>Powered by</span>
+          <span className="text-white font-extrabold px-2 py-0.5 rounded bg-white/10 border border-white/15">NOVEA</span>
+        </div>
+
         {/* Subtitle / Value Proposition */}
         <p
-          className={`text-xs sm:text-sm text-[#94A3B8] font-medium max-w-xs transition-all duration-700 ${
+          className={`text-xs text-[#94A3B8] font-medium max-w-xs transition-all duration-700 ${
             animStep >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
           }`}
         >
           Collegiate Clinical Networking, Knowledge Sharing & Medical Council Verification
         </p>
-
-        {/* Current Concept Badge */}
-        <div
-          className={`mt-3 inline-flex items-center gap-1.5 text-[11px] text-[#64748B] transition-opacity duration-700 ${
-            animStep >= 4 ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          <Sparkles className="w-3 h-3 text-[#38BDF8]" />
-          <span>Active Identity: </span>
-          <span className="text-[#CBD5E1] font-semibold">{activeLogo.name}</span>
-        </div>
       </div>
 
       {/* Bottom Action Area: Differs for Returning User vs First Launch */}
@@ -244,7 +265,6 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Real Verification Badge */}
               <VerificationBadge status={currentDoctor.verificationStatus} showText={true} />
             </div>
 
@@ -265,7 +285,7 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
               onClick={onEnterApp}
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#1D4ED8] via-[#2563EB] to-[#0D9488] hover:from-[#1E40AF] hover:to-[#0F766E] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#1D4ED8]/25 transition-all active:scale-[0.99] cursor-pointer"
             >
-              <span>Enter NOVEA Feed</span>
+              <span>Enter DoctoHub Feed</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

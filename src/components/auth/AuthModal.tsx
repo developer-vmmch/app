@@ -501,17 +501,17 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose, onUserChanged }) =
 
           {/* Top Brand Identity & Hierarchy */}
           <div className="relative z-10 space-y-3 sm:space-y-4">
-            {/* AMT Brand Mark */}
+            {/* DoctoHub Brand Mark */}
             <div className="flex items-center gap-2 sm:gap-2.5">
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#1B4B82] via-[#3185FF] to-[#26D9C3] flex items-center justify-center text-white shadow-lg shrink-0">
                 <Stethoscope className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.3]" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 leading-none">
-                  <span className="font-black text-xs sm:text-sm tracking-tight text-white">AMT</span>
+                  <span className="font-black text-sm sm:text-base tracking-tight text-white">DoctoHub</span>
                   <span className="w-1 h-1 rounded-full bg-[#26D9C3]" />
                   <span className="text-[11px] sm:text-xs font-bold text-[#64B5F6] tracking-tight">
-                    Doctor Knowledge Network
+                    Powered by NOVEA
                   </span>
                 </div>
                 <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
