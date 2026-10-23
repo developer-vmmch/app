@@ -42,6 +42,20 @@ const COUNCILS = [
 
 const QUICK_PERSONAS = [
   {
+    id: 'AMT-DOC-TEST-A',
+    name: 'Dr. Novea Test Doctor A',
+    specialty: 'General Medicine (Test Account A)',
+    institution: 'DoctoHub Medical Network',
+    badge: 'Account A',
+  },
+  {
+    id: 'AMT-DOC-TEST-B',
+    name: 'Dr. Novea Test Doctor B',
+    specialty: 'Cardiology (Test Account B)',
+    institution: 'DoctoHub Specialty Center',
+    badge: 'Account B',
+  },
+  {
     id: 'AMT-DOC-10024',
     name: 'Dr. Alex Rivera',
     specialty: 'Internal Medicine (Resident)',
