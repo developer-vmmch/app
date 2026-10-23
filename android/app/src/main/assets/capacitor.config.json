@@ -1,5 +1,5 @@
 {
-	"appId": "com.novea.medical",
+	"appId": "com.amt.doctorknowledge",
 	"appName": "DoctoHub",
 	"webDir": "dist",
 	"bundledWebRuntime": false,
