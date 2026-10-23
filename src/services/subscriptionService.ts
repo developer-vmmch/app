@@ -1,6 +1,7 @@
 /**
- * NOVEA Medical Network - Monthly Subscription & Usage Quota Management
- * Enforces monthly plan allowances, server-side usage verification, and test mode switching.
+ * NOVEA / DoctoHub Medical Network - Monthly Subscription & Usage Quota Management
+ * Enforces monthly plan allowances when FEATURE_SUBSCRIPTION_ENFORCEMENT=true.
+ * Defaults to free testing access during development.
  */
 
 export type SubscriptionTier = 'FREE' | 'CHAT' | 'VOICE' | 'CHAT_VOICE' | 'UNLIMITED';
@@ -75,6 +76,15 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, PlanDetails> = {
 };
 
 class SubscriptionService {
+  private isEnforcementEnabled(): boolean {
+    try {
+      if (typeof import.meta !== 'undefined' && import.meta.env) {
+        return import.meta.env.VITE_FEATURE_SUBSCRIPTION_ENFORCEMENT === 'true';
+      }
+    } catch {}
+    return false; // Default: Free access for dev/testing phase
+  }
+
   private getStorageKey(userId: string): string {
     return `novea_subscription_${userId}`;
   }
@@ -87,7 +97,6 @@ class SubscriptionService {
       }
     } catch {}
 
-    // Default Free Tier
     const now = new Date();
     const expiry = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
     const defaultSub: UserSubscription = {
@@ -95,7 +104,7 @@ class SubscriptionService {
       tier: 'FREE',
       startDate: now.toISOString(),
       expiresDate: expiry.toISOString(),
-      usedMessagesCount: 12,
+      usedMessagesCount: 0,
       usedVoiceMins: 0,
       usedVideoMins: 0,
       isTestSubscription: true,
@@ -128,6 +137,9 @@ class SubscriptionService {
   }
 
   public canSendMessage(userId: string): { allowed: boolean; remaining: number } {
+    if (!this.isEnforcementEnabled()) {
+      return { allowed: true, remaining: 9999 };
+    }
     const sub = this.getSubscription(userId);
     const plan = SUBSCRIPTION_PLANS[sub.tier];
     if (plan.maxMessagesMonthly === -1) {
@@ -144,6 +156,9 @@ class SubscriptionService {
   }
 
   public canMakeCall(userId: string, callType: 'audio' | 'video'): { allowed: boolean; remainingMins: number } {
+    if (!this.isEnforcementEnabled()) {
+      return { allowed: true, remainingMins: 9999 };
+    }
     const sub = this.getSubscription(userId);
     const plan = SUBSCRIPTION_PLANS[sub.tier];
     const maxMins = callType === 'audio' ? plan.maxVoiceMinsMonthly : plan.maxVideoMinsMonthly;

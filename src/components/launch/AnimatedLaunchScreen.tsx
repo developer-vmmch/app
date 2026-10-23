@@ -19,6 +19,17 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
 
   const [animStep, setAnimStep] = useState<number>(0);
   const [videoError, setVideoError] = useState<boolean>(false);
+  const transitionedRef = useRef<boolean>(false);
+
+  const handleVideoEnded = () => {
+    if (transitionedRef.current) return;
+    transitionedRef.current = true;
+    if (currentDoctor) {
+      onEnterApp();
+    } else {
+      onOpenAuth('signin');
+    }
+  };
 
   useEffect(() => {
     // Attempt explicit video playback for Android WebView
@@ -35,20 +46,18 @@ export const AnimatedLaunchScreen: React.FC<Props> = ({
     const t2 = setTimeout(() => setAnimStep(2), 800);
     const t3 = setTimeout(() => setAnimStep(3), 1300);
 
+    // Safety fallback timer to prevent any blank screen or hang (5.5 seconds max)
+    const fallbackTimer = setTimeout(() => {
+      handleVideoEnded();
+    }, 5500);
+
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(fallbackTimer);
     };
   }, []);
-
-  const handleVideoEnded = () => {
-    if (currentDoctor) {
-      onEnterApp();
-    } else {
-      onOpenAuth('signin');
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-between text-white overflow-hidden select-none px-6 py-12 bg-[#040812]">

@@ -1,18 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
-  Volume2,
-  VolumeX,
   Clock,
   Send,
   Flag,
   Trash2,
+  Eye,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  Building2,
-  Eye,
-  Lock,
 } from 'lucide-react';
 import { Story, DoctorProfile } from '../../types';
 import { api } from '../../services/api';
@@ -25,6 +20,8 @@ interface Props {
   onStoryDeleted: (storyId: string) => void;
   onReplyToStory: (authorId: string, replyText: string) => void;
   onReportStory: (story: Story) => void;
+  onNextStory?: () => void;
+  onPrevStory?: () => void;
 }
 
 export const StoryViewerModal: React.FC<Props> = ({
@@ -34,13 +31,18 @@ export const StoryViewerModal: React.FC<Props> = ({
   onStoryDeleted,
   onReplyToStory,
   onReportStory,
+  onNextStory,
+  onPrevStory,
 }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [isMuted, setIsMuted] = useState(true);
   const [replyText, setReplyText] = useState('');
   const [replySent, setReplySent] = useState(false);
+
   const progressTimerRef = useRef<any>(null);
+  const touchStartXRef = useRef<number>(0);
+  const touchStartYRef = useRef<number>(0);
+  const touchStartTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!story) return;
@@ -55,7 +57,11 @@ export const StoryViewerModal: React.FC<Props> = ({
         setProgress((prev) => {
           if (prev >= 100) {
             clearInterval(progressTimerRef.current);
-            onClose();
+            if (onNextStory) {
+              onNextStory();
+            } else {
+              onClose();
+            }
             return 100;
           }
           return prev + step;
@@ -89,7 +95,47 @@ export const StoryViewerModal: React.FC<Props> = ({
     setTimeout(() => setReplySent(false), 2000);
   };
 
-  // Remaining time until 23:59:59 boundary
+  const handleTapNavigation = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const isRightSide = clickX > rect.width / 2;
+
+    if (isRightSide) {
+      if (onNextStory) onNextStory();
+      else onClose();
+    } else {
+      if (onPrevStory) onPrevStory();
+      else setProgress(0);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    setIsPaused(true);
+    if (e.touches[0]) {
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartYRef.current = e.touches[0].clientY;
+      touchStartTimeRef.current = Date.now();
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    setIsPaused(false);
+    if (e.changedTouches[0]) {
+      const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+      const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+      const duration = Date.now() - touchStartTimeRef.current;
+
+      // Horizontal swipe gesture check
+      if (Math.abs(deltaX) > 40 && Math.abs(deltaY) < 60 && duration < 400) {
+        if (deltaX < 0 && onNextStory) {
+          onNextStory(); // Swipe Left -> Next
+        } else if (deltaX > 0 && onPrevStory) {
+          onPrevStory(); // Swipe Right -> Previous
+        }
+      }
+    }
+  };
+
   const calculateTimeToExpiry = () => {
     const diff = new Date(story.expiresAt).getTime() - new Date().getTime();
     if (diff <= 0) return 'Expired';
@@ -103,10 +149,10 @@ export const StoryViewerModal: React.FC<Props> = ({
       className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center select-none"
       onMouseDown={() => setIsPaused(true)}
       onMouseUp={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      <div className="relative w-full max-w-[420px] h-[92vh] max-h-[780px] bg-[#12345B] rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-slate-700">
+      <div className="relative w-full max-w-[420px] h-[92vh] max-h-[780px] bg-[#0C1A30] rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-slate-700">
         {/* Progress Bar (6-second story duration) */}
         <div className="absolute top-2 left-3 right-3 z-30 flex items-center gap-1">
           <div className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
@@ -133,7 +179,7 @@ export const StoryViewerModal: React.FC<Props> = ({
                 <VerificationBadge status={story.authorVerificationStatus} showText={false} />
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-white/90 drop-shadow">
-                <span className="font-medium text-[#4D8DE0] bg-[#12345B]/80 px-1 py-0.2 rounded">
+                <span className="font-medium text-[#38BDF8] bg-[#0C1A30]/80 px-1 py-0.2 rounded">
                   {story.storyType === 'PROFESSIONAL' ? 'Professional Story' : 'Personal Story'}
                 </span>
                 <span>·</span>
@@ -152,7 +198,7 @@ export const StoryViewerModal: React.FC<Props> = ({
                   e.stopPropagation();
                   handleDelete();
                 }}
-                className="p-1.5 rounded-full bg-black/40 hover:bg-rose-600 text-white transition-colors"
+                className="p-1.5 rounded-full bg-black/40 hover:bg-rose-600 text-white transition-colors cursor-pointer"
                 title="Delete your story"
               >
                 <Trash2 className="w-4 h-4" />
@@ -163,7 +209,7 @@ export const StoryViewerModal: React.FC<Props> = ({
                   e.stopPropagation();
                   onReportStory(story);
                 }}
-                className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+                className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors cursor-pointer"
                 title="Report story"
               >
                 <Flag className="w-4 h-4" />
@@ -175,33 +221,59 @@ export const StoryViewerModal: React.FC<Props> = ({
                 e.stopPropagation();
                 onClose();
               }}
-              className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+              className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Story Media Background */}
-        <div className="flex-1 w-full h-full relative flex items-center justify-center bg-black">
+        {/* Story Media Container with Tap Zones */}
+        <div
+          onClick={handleTapNavigation}
+          className="flex-1 w-full h-full relative flex items-center justify-center bg-black cursor-pointer"
+        >
           {story.mediaUrl ? (
             <img
               src={story.mediaUrl}
               alt="Story"
-              className="w-full h-full object-cover opacity-90"
+              className="w-full h-full object-cover opacity-90 pointer-events-none"
             />
           ) : (
-            <div className="p-8 text-center text-white bg-gradient-to-b from-[#12345B] to-[#246BCE] w-full h-full flex items-center justify-center">
-              <p className="text-base font-semibold leading-relaxed max-w-xs">{story.caption}</p>
+            <div className="p-8 text-center text-white bg-gradient-to-b from-[#081122] via-[#0C1A30] to-[#1D4ED8] w-full h-full flex items-center justify-center pointer-events-none">
+              <p className="text-base font-bold leading-relaxed max-w-xs">{story.caption}</p>
             </div>
           )}
 
-          {/* Pause overlay watermark */}
+          {/* Touch-and-Hold Pause Indicator Watermark */}
           {isPaused && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white text-xs font-bold px-3.5 py-1.5 rounded-full backdrop-blur z-20">
               Paused
             </div>
           )}
+
+          {/* Navigation Chevron Affordances */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onPrevStory) onPrevStory();
+              else setProgress(0);
+            }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/60 text-white/80 transition-colors z-20 cursor-pointer"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onNextStory) onNextStory();
+              else onClose();
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/60 text-white/80 transition-colors z-20 cursor-pointer"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Story Caption & Audience Overlay */}
@@ -217,7 +289,7 @@ export const StoryViewerModal: React.FC<Props> = ({
           </div>
 
           {story.caption && (
-            <p className="text-xs text-white bg-black/60 backdrop-blur p-2.5 rounded-xl border border-white/20 leading-relaxed drop-shadow">
+            <p className="text-xs text-white bg-black/70 backdrop-blur p-2.5 rounded-xl border border-white/20 leading-relaxed drop-shadow">
               {story.caption}
             </p>
           )}
@@ -240,7 +312,7 @@ export const StoryViewerModal: React.FC<Props> = ({
             <button
               type="submit"
               disabled={!replyText.trim()}
-              className="p-2.5 rounded-xl bg-[#246BCE] hover:bg-[#4D8DE0] text-white disabled:opacity-40 transition-colors shrink-0"
+              className="p-2.5 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] text-white disabled:opacity-40 transition-colors shrink-0 cursor-pointer"
             >
               <Send className="w-4 h-4" />
             </button>

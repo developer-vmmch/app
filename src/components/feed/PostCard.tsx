@@ -41,6 +41,21 @@ export const PostCard: React.FC<Props> = ({
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [heartAnim, setHeartAnim] = useState<{ x: number; y: number } | null>(null);
+  const lastTapRef = React.useRef<number>(0);
+
+  const handleMediaDoubleTap = (e: React.MouseEvent<HTMLDivElement>) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setHeartAnim({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      if (!post.isLiked) {
+        onLike(post.id);
+      }
+      setTimeout(() => setHeartAnim(null), 850);
+    }
+    lastTapRef.current = now;
+  };
 
   // Safe Fallback Accessors preventing runtime TypeErrors
   const authorId = post.author?.id || (post as any).authorId || 'AMT-DOC-10024';
@@ -180,7 +195,20 @@ export const PostCard: React.FC<Props> = ({
 
       {/* Clinical Media Attachment (Image or Video) */}
       {post.mediaUrl && (
-        <div className="w-full rounded-2xl overflow-hidden border border-[#E5EDF5] relative bg-black">
+        <div
+          onClick={handleMediaDoubleTap}
+          className="w-full rounded-2xl overflow-hidden border border-[#E5EDF5] relative bg-black select-none cursor-pointer"
+        >
+          {/* Animated Heart Overlay on Double-Tap */}
+          {heartAnim && (
+            <div
+              className="absolute z-30 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-bounce"
+              style={{ left: `${heartAnim.x}px`, top: `${heartAnim.y}px` }}
+            >
+              <Heart className="w-16 h-16 text-rose-500 fill-rose-500 drop-shadow-2xl scale-125" />
+            </div>
+          )}
+
           {post.mediaType === 'video' || post.postType === 'video' ? (
             <video
               src={post.mediaUrl}
